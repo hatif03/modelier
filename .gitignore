@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# ad-hoc Playwright verification scripts + scratch assets, not part of the app
+/.scratch-tests
+
 # vercel
 .vercel
 
