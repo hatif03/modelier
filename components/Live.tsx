@@ -239,8 +239,12 @@ const Live = ({ canvasRef, undo, redo, zoom, onZoomIn, onZoomOut, onZoomReset }:
         onPointerUp={handlePointerUp}
       >
         {/* A bounded page, not a canvas that fills the viewport — the shadow
-            is what actually reads as "a page" against the muted workspace. */}
-        <div className="shadow-lg">
+            is what actually reads as "a page" against the muted workspace.
+            Zoom scales THIS wrapper via CSS, not fabric's internal viewport,
+            so the page itself visibly grows/shrinks on screen like Canva,
+            staying whole and centered, rather than clipping content inside a
+            fixed-size box. */}
+        <div className="shadow-lg transition-transform" style={{ transform: `scale(${zoom})` }}>
           <canvas ref={canvasRef} />
         </div>
 

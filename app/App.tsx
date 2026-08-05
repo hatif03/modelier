@@ -16,7 +16,7 @@ import {
   handlePathCreated,
   initializeFabric,
   renderCanvas,
-  zoomCanvas,
+  clampZoom,
 } from "@/lib/canvas";
 import { handleDelete, handleKeyDown } from "@/lib/key-events";
 import { LeftSidebar, Live, Navbar, RightSidebar } from "@/components/index";
@@ -302,23 +302,11 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
     }
   };
 
-  const handleZoomIn = () => {
-    const canvas = fabricRef.current;
-    if (!canvas) return;
-    setZoom(zoomCanvas(canvas, canvas.getZoom() + 0.1));
-  };
-
-  const handleZoomOut = () => {
-    const canvas = fabricRef.current;
-    if (!canvas) return;
-    setZoom(zoomCanvas(canvas, canvas.getZoom() - 0.1));
-  };
-
-  const handleZoomReset = () => {
-    const canvas = fabricRef.current;
-    if (!canvas) return;
-    setZoom(zoomCanvas(canvas, 1));
-  };
+  // Zoom is pure CSS state applied to the page wrapper in Live.tsx — no
+  // fabric canvas API calls at all, see lib/canvas.ts for why.
+  const handleZoomIn = () => setZoom((z) => clampZoom(z + 0.1));
+  const handleZoomOut = () => setZoom((z) => clampZoom(z - 0.1));
+  const handleZoomReset = () => setZoom(1);
 
   useEffect(() => {
     // initialize the fabric canvas
@@ -464,11 +452,7 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
      * Event list: http://fabricjs.com/docs/fabric.Canvas.html#fire
      */
     canvas.on("mouse:wheel", (options) => {
-      const newZoom = handleCanvasZoom({
-        options,
-        canvas,
-      });
-      setZoom(newZoom);
+      setZoom((current) => handleCanvasZoom(options as fabric.IEvent & { e: WheelEvent }, current));
     });
 
     /**
@@ -521,6 +505,32 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
       activeObjectRef,
     });
   }, [canvasObjects]);
+
+  // Capture a small preview a few seconds after each edit settles, so the
+  // Dashboard can show a real snapshot of the design (Canva-style) instead
+  // of a blank tile. Debounced and non-fatal — a canvas that's briefly
+  // tainted by a cross-origin image without CORS just skips this round.
+  useEffect(() => {
+    if (!projectId) return;
+    const timer = setTimeout(() => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      try {
+        const dataUrl = canvas.toDataURL({ format: "png", multiplier: 0.3 });
+        fetch(dataUrl)
+          .then((res) => res.blob())
+          .then((blob) => {
+            const form = new FormData();
+            form.set("thumbnail", blob, "thumbnail.png");
+            return fetch(`/api/projects/${projectId}/thumbnail`, { method: "PUT", body: form });
+          })
+          .catch(() => {});
+      } catch {
+        // tainted canvas — skip, next edit's capture will likely succeed
+      }
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [canvasObjects, projectId]);
 
   return (
     <main className='h-screen overflow-hidden'>

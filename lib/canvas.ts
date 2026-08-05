@@ -385,42 +385,29 @@ export const renderCanvas = ({
   fabricRef.current?.renderAll();
 };
 
-// allow zooming to min 20% and max 300% — the wheel and the on-screen
-// controls both funnel through zoomCanvas below, so there's one clamp,
-// one implementation.
+// Zoom is a CSS transform: scale(zoom) on the page wrapper in Live.tsx, not
+// fabric's own internal viewport — a fixed-size fabric canvas rescaled via
+// canvas.zoomToPoint() never visually grows or shrinks the on-screen page,
+// only the content inside it, which is why the old approach felt like an
+// infinite canvas rather than a bounded, Canva-style page. Fabric's own zoom
+// stays at 1 forever; its getPointer() already computes a cssScale factor
+// from getBoundingClientRect() vs the canvas's internal pixel size, so mouse
+// hit-testing keeps working correctly under a CSS-scaled canvas with no
+// extra coordinate math needed here.
 export const MIN_ZOOM = 0.2;
 export const MAX_ZOOM = 3;
 
 export const clampZoom = (zoom: number) => Math.min(Math.max(MIN_ZOOM, zoom), MAX_ZOOM);
 
-// set the canvas zoom around a given point (defaults to canvas center) and
-// return the clamped value actually applied, so callers can sync UI state.
-export const zoomCanvas = (canvas: fabric.Canvas, zoom: number, point?: { x: number; y: number }) => {
-  const clamped = clampZoom(zoom);
-  const center = point ?? { x: canvas.getWidth() / 2, y: canvas.getHeight() / 2 };
-  canvas.zoomToPoint(center, clamped);
-  canvas.requestRenderAll();
-  return clamped;
-};
+const WHEEL_ZOOM_STEP = 0.001;
 
-// zoom canvas on mouse scroll
-export const handleCanvasZoom = ({
-  options,
-  canvas,
-}: {
-  options: fabric.IEvent & { e: WheelEvent };
-  canvas: fabric.Canvas;
-}) => {
-  const delta = options.e?.deltaY;
-  const zoomStep = 0.001;
+export const zoomByWheelDelta = (currentZoom: number, deltaY: number) =>
+  clampZoom(currentZoom - deltaY * WHEEL_ZOOM_STEP);
 
-  const zoom = zoomCanvas(canvas, canvas.getZoom() - delta * zoomStep, {
-    x: options.e.offsetX,
-    y: options.e.offsetY,
-  });
-
+// zoom canvas on mouse scroll — purely arithmetic, no fabric canvas API
+// calls; the caller applies the returned value as CSS state.
+export const handleCanvasZoom = (options: fabric.IEvent & { e: WheelEvent }, currentZoom: number) => {
   options.e.preventDefault();
   options.e.stopPropagation();
-
-  return zoom;
+  return zoomByWheelDelta(currentZoom, options.e.deltaY);
 };
