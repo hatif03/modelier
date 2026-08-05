@@ -10,14 +10,18 @@ export type StartGenerationInput = {
   garmentCategory?: ApparelCategory;
   shadeHex?: string;
   referenceModelIds: string[];
+  prompt?: string;
+  resolution?: "480" | "720" | "1080";
+  durationSeconds?: 5 | 10;
 };
 
 function toVariantView(v: any): GenerationVariantView {
   return {
     id: v.id,
-    referenceModelLabel: v.referenceModel?.label ?? "Reference model",
+    referenceModelLabel: v.referenceModel?.label ?? (v.youcamFeature === "image-to-video" ? "Video clip" : "Reference model"),
     status: v.status,
     resultImageUrl: v.resultImageUrl ?? undefined,
+    isVideo: v.youcamFeature === "image-to-video",
     errorMessage: v.errorMessage ?? undefined,
     colorHarmonyScore: v.colorHarmonyScore ?? undefined,
     colorHarmonyNote: v.colorHarmonyNote ?? undefined,
@@ -40,6 +44,9 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
   form.set("flow", input.flow);
   if (input.garmentCategory) form.set("garmentCategory", input.garmentCategory);
   if (input.shadeHex) form.set("shadeHex", input.shadeHex);
+  if (input.prompt) form.set("prompt", input.prompt);
+  if (input.resolution) form.set("resolution", input.resolution);
+  if (input.durationSeconds) form.set("durationSeconds", String(input.durationSeconds));
   input.referenceModelIds.forEach((id) => form.append("referenceModelId", id));
 
   const res = await fetch("/api/generations", { method: "POST", body: form });

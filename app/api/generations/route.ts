@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { uploadFile } from "@/lib/youcam/client";
 import { createClothesVtoTask, type GarmentCategory } from "@/lib/youcam/clothesVto";
 import { createMakeupVtoTask, lipColorEffectFromShade } from "@/lib/youcam/makeupVto";
+import { createImageToVideoTask, type VideoResolution } from "@/lib/youcam/imageToVideo";
 import { extractDominantColor } from "@/lib/colorHarmony";
 
 // Diversity batches multiply YouCam unit spend 1:1 with variant count — this cap
@@ -27,8 +28,74 @@ export async function POST(req: Request) {
   const referenceModelIds = form.getAll("referenceModelId").map(String);
   const projectId = form.get("projectId");
 
-  if (flow !== "apparel_vto" && flow !== "makeup_vto") {
-    return NextResponse.json({ error: "flow must be 'apparel_vto' or 'makeup_vto'." }, { status: 400 });
+  if (flow !== "apparel_vto" && flow !== "makeup_vto" && flow !== "image_to_video") {
+    return NextResponse.json(
+      { error: "flow must be 'apparel_vto', 'makeup_vto', or 'image_to_video'." },
+      { status: 400 }
+    );
+  }
+
+  // image_to_video animates a single arbitrary source image — no
+  // ReferenceModel diversity concept applies, so it's handled as its own
+  // short-circuit rather than threaded through the reference-model loop below.
+  if (flow === "image_to_video") {
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "A source image is required." }, { status: 400 });
+    }
+    const prompt = form.get("prompt");
+    if (typeof prompt !== "string" || !prompt.trim()) {
+      return NextResponse.json({ error: "Describe the motion you want in the clip." }, { status: 400 });
+    }
+    const resolution = (form.get("resolution") as VideoResolution | null) ?? "720";
+    const durationSeconds = form.get("durationSeconds") === "10" ? 10 : 5;
+
+    const generation = await db.generation.create({
+      data: {
+        userId: session.user.id,
+        projectId: typeof projectId === "string" && projectId ? projectId : undefined,
+        flow,
+        status: "processing",
+      },
+    });
+
+    let variant;
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const uploaded = await uploadFile(buffer, {
+        contentType: file.type || "image/png",
+        fileName: file.name || "upload.png",
+      });
+      const taskId = await createImageToVideoTask({
+        srcFileId: uploaded.fileId,
+        resolution,
+        durationSeconds,
+        prompt: prompt.trim(),
+      });
+      variant = await db.generationVariant.create({
+        data: {
+          generationId: generation.id,
+          youcamTaskId: taskId,
+          youcamFeature: "image-to-video",
+          status: "processing",
+        },
+      });
+    } catch (err) {
+      variant = await db.generationVariant.create({
+        data: {
+          generationId: generation.id,
+          youcamFeature: "image-to-video",
+          status: "error",
+          errorMessage: err instanceof Error ? err.message : "Failed to start video generation.",
+        },
+      });
+    }
+
+    await db.generation.update({
+      where: { id: generation.id },
+      data: { status: variant.status === "processing" ? "processing" : "error" },
+    });
+
+    return NextResponse.json({ generationId: generation.id, variants: [variant] }, { status: 201 });
   }
   if (referenceModelIds.length === 0) {
     return NextResponse.json({ error: "At least one referenceModelId is required." }, { status: 400 });
@@ -168,7 +235,7 @@ export async function GET() {
   const generations = await db.generation.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
-    include: { variants: true },
+    include: { variants: { include: { referenceModel: true } } },
     take: 50,
   });
 

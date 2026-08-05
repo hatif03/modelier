@@ -1,6 +1,6 @@
 export type ApparelCategory = "upper_body" | "lower_body" | "full_body" | "auto";
 
-export type AIStudioFlow = "apparel_vto" | "makeup_vto";
+export type AIStudioFlow = "apparel_vto" | "makeup_vto" | "image_to_video";
 
 export type VariantStatus = "processing" | "success" | "error";
 
@@ -9,6 +9,9 @@ export type GenerationVariantView = {
   referenceModelLabel: string;
   status: VariantStatus;
   resultImageUrl?: string;
+  // true when resultImageUrl actually holds a video URL (image_to_video flow)
+  // — the field is reused rather than renamed repo-wide for one flow.
+  isVideo?: boolean;
   errorMessage?: string;
   colorHarmonyScore?: number;
   colorHarmonyNote?: string;

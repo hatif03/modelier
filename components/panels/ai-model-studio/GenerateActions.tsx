@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 
 type Props = {
   onGenerate: () => void;
-  onGenerateBatch: () => void;
+  onGenerateBatch?: () => void;
   disabled: boolean;
   isGenerating: boolean;
 };
@@ -12,14 +12,16 @@ const GenerateActions = ({ onGenerate, onGenerateBatch, disabled, isGenerating }
     <Button disabled={disabled || isGenerating} onClick={onGenerate} className="w-full">
       {isGenerating ? "Generating…" : "Generate"}
     </Button>
-    <Button
-      disabled={disabled || isGenerating}
-      onClick={onGenerateBatch}
-      variant="outline"
-      className="w-full border-border bg-background hover:border-accent hover:bg-background hover:text-accent"
-    >
-      Generate diverse batch
-    </Button>
+    {onGenerateBatch && (
+      <Button
+        disabled={disabled || isGenerating}
+        onClick={onGenerateBatch}
+        variant="outline"
+        className="w-full border-border bg-background hover:border-accent hover:bg-background hover:text-accent"
+      >
+        Generate diverse batch
+      </Button>
+    )}
   </div>
 );
 

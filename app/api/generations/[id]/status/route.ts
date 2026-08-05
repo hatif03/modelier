@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getClothesVtoStatus } from "@/lib/youcam/clothesVto";
 import { getMakeupVtoStatus } from "@/lib/youcam/makeupVto";
+import { getImageToVideoStatus } from "@/lib/youcam/imageToVideo";
 import { friendlyYoucamError } from "@/lib/youcam/friendlyError";
 import { computeHarmonyScore, type Undertone } from "@/lib/colorHarmony";
 
@@ -37,7 +38,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
             ? await getClothesVtoStatus(variant.youcamTaskId as string)
             : variant.youcamFeature === "makeup-vto"
               ? await getMakeupVtoStatus(variant.youcamTaskId as string)
-              : null;
+              : variant.youcamFeature === "image-to-video"
+                ? await getImageToVideoStatus(variant.youcamTaskId as string)
+                : null;
 
         if (!result || result.status === "running") return;
 
@@ -88,13 +91,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   // set on that flow), and only against the real, seed-time-detected undertone
   // on each ReferenceModel, never a live per-generation API call (see
   // lib/colorHarmony.ts for why).
-  const unscored = refreshed!.variants.filter((v) => v.status === "success" && v.colorHarmonyScore === null);
+  const unscored = refreshed!.variants.filter(
+    (v) => v.status === "success" && v.colorHarmonyScore === null && v.referenceModel
+  );
   if (refreshed!.garmentColorHex && unscored.length > 0) {
     const scored = unscored.map((variant) => ({
       variant,
       ...computeHarmonyScore(refreshed!.garmentColorHex as string, {
-        label: variant.referenceModel.label,
-        undertone: variant.referenceModel.undertone as Undertone,
+        label: variant.referenceModel!.label,
+        undertone: variant.referenceModel!.undertone as Undertone,
       }),
     }));
 

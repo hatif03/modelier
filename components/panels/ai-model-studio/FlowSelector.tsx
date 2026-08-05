@@ -29,6 +29,16 @@ const FlowSelector = ({ flow, onChange }: Props) => (
     >
       Beauty
     </button>
+    <button
+      onClick={() => onChange("image_to_video")}
+      className={`flex-1 rounded-sm border px-3 py-2 text-xs uppercase tracking-wide ${
+        flow === "image_to_video"
+          ? "border-accent bg-accent/10 font-semibold text-foreground"
+          : "border-border text-muted-foreground hover:border-accent/60"
+      }`}
+    >
+      Video
+    </button>
   </div>
 );
 
