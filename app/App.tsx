@@ -14,9 +14,9 @@ import {
   handleCanvasSelectionCreated,
   handleCanvasZoom,
   handlePathCreated,
-  handleResize,
   initializeFabric,
   renderCanvas,
+  zoomCanvas,
 } from "@/lib/canvas";
 import { handleDelete, handleKeyDown } from "@/lib/key-events";
 import { LeftSidebar, Live, Navbar, RightSidebar } from "@/components/index";
@@ -24,7 +24,14 @@ import { handleImageUpload } from "@/lib/shapes";
 import { defaultNavElement } from "@/constants";
 import { ActiveElement, Attributes } from "@/types/type";
 
-const Home = () => {
+type Props = {
+  width: number;
+  height: number;
+  projectId?: string;
+  initialName?: string;
+};
+
+const Home = ({ width, height, projectId, initialName }: Props) => {
   /**
    * useUndo and useRedo are hooks provided by Liveblocks that allow you to
    * undo and redo mutations.
@@ -97,6 +104,13 @@ const Home = () => {
    */
   const activeObjectRef = useRef<fabric.Object | null>(null);
   const isEditingRef = useRef(false);
+
+  /**
+   * zoom mirrors canvas.getZoom() into React state purely for the on-screen
+   * percentage/controls — fabric itself doesn't emit a "zoom changed" event,
+   * so every place that changes zoom (wheel, buttons) updates this too.
+   */
+  const [zoom, setZoom] = useState(1);
 
   /**
    * imageInputRef is a reference to the input element that we use to upload
@@ -288,11 +302,31 @@ const Home = () => {
     }
   };
 
+  const handleZoomIn = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    setZoom(zoomCanvas(canvas, canvas.getZoom() + 0.1));
+  };
+
+  const handleZoomOut = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    setZoom(zoomCanvas(canvas, canvas.getZoom() - 0.1));
+  };
+
+  const handleZoomReset = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    setZoom(zoomCanvas(canvas, 1));
+  };
+
   useEffect(() => {
     // initialize the fabric canvas
     const canvas = initializeFabric({
       canvasRef,
       fabricRef,
+      width,
+      height,
     });
 
     /**
@@ -430,23 +464,11 @@ const Home = () => {
      * Event list: http://fabricjs.com/docs/fabric.Canvas.html#fire
      */
     canvas.on("mouse:wheel", (options) => {
-      handleCanvasZoom({
+      const newZoom = handleCanvasZoom({
         options,
         canvas,
       });
-    });
-
-    /**
-     * listen to the resize event on the window which is fired when the
-     * user resizes the window.
-     *
-     * We're using this to resize the canvas when the user resizes the
-     * window.
-     */
-    window.addEventListener("resize", () => {
-      handleResize({
-        canvas: fabricRef.current,
-      });
+      setZoom(newZoom);
     });
 
     /**
@@ -478,12 +500,6 @@ const Home = () => {
       canvas.dispose();
 
       // remove the event listeners
-      window.removeEventListener("resize", () => {
-        handleResize({
-          canvas: null,
-        });
-      });
-
       window.removeEventListener("keydown", (e) =>
         handleKeyDown({
           e,
@@ -511,6 +527,8 @@ const Home = () => {
       <Navbar
         imageInputRef={imageInputRef}
         activeElement={activeElement}
+        projectId={projectId}
+        initialName={initialName}
         handleImageUpload={(e: any) => {
           // prevent the default behavior of the input element
           e.stopPropagation();
@@ -530,12 +548,21 @@ const Home = () => {
           allShapes={Array.from(canvasObjects)}
           fabricRef={fabricRef}
           shapeRef={shapeRef}
+          activeObjectRef={activeObjectRef}
           syncShapeInStorage={syncShapeInStorage}
           deleteShapeFromStorage={deleteShapeFromStorage}
           deleteAllShapes={deleteAllShapes}
         />
 
-        <Live canvasRef={canvasRef} undo={undo} redo={redo} />
+        <Live
+          canvasRef={canvasRef}
+          undo={undo}
+          redo={redo}
+          zoom={zoom}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onZoomReset={handleZoomReset}
+        />
 
         <RightSidebar
           elementAttributes={elementAttributes}

@@ -119,35 +119,109 @@ export const handleImageUpload = ({
   reader.readAsDataURL(file);
 };
 
+export function loadHtmlImage(url: string, crossOrigin?: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    if (crossOrigin) img.crossOrigin = crossOrigin;
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    img.src = url;
+  });
+}
+
 // Same insertion sequence as handleImageUpload, but for a remote URL (a
 // generated AI Model Studio render, a template asset, ...) instead of a local
-// File — skips FileReader entirely. crossOrigin is required so the canvas
-// doesn't get tainted (exportToPdf's canvas.toDataURL() would otherwise throw
-// once a cross-origin image is on the canvas).
-export const insertImageFromUrl = ({
+// File — skips FileReader entirely. crossOrigin is requested first so the
+// canvas stays untainted (exportToPdf's canvas.toDataURL() would otherwise
+// throw once a cross-origin image is on the canvas) — but YouCam's own
+// CDN has been observed intermittently serving a cache hit without CORS
+// headers for the exact same URL that worked moments earlier, which silently
+// breaks a plain fabric.Image.fromURL(..., {crossOrigin: "anonymous"}) call
+// (the image never loads, nothing is added, no error surfaces). Loading the
+// <img> ourselves first lets us detect that and fall back to a same
+// non-CORS load so the image still lands on canvas — Export to PDF just
+// won't work for a canvas containing this particular image.
+export const insertImageFromUrl = async ({
   url,
   canvas,
   shapeRef,
   syncShapeInStorage,
 }: InsertImageFromUrl) => {
-  fabric.Image.fromURL(
-    url,
-    (img) => {
-      img.scaleToWidth(300);
-      img.scaleToHeight(300);
+  let htmlImg: HTMLImageElement;
+  try {
+    htmlImg = await loadHtmlImage(url, "anonymous");
+  } catch {
+    htmlImg = await loadHtmlImage(url);
+  }
 
-      canvas.current.add(img);
+  const img = new fabric.Image(htmlImg);
+  img.scaleToWidth(300);
+  img.scaleToHeight(300);
 
-      // @ts-ignore
-      img.objectId = uuidv4();
+  canvas.current.add(img);
+  canvas.current.setActiveObject(img);
 
-      shapeRef.current = img;
+  // @ts-ignore
+  img.objectId = uuidv4();
 
-      syncShapeInStorage(img);
-      canvas.current.requestRenderAll();
-    },
-    { crossOrigin: "anonymous" }
-  );
+  shapeRef.current = img;
+
+  syncShapeInStorage(img);
+  canvas.current.requestRenderAll();
+};
+
+// Upload a user's own image (PNG/JPG) or vector (SVG) onto the canvas,
+// centered — unlike handleImageUpload above (which is driven by the Navbar's
+// image tool and leaves fabric's default 0,0 placement), this is the
+// Uploads panel's entry point and both branches converge on the same
+// objectId/syncShapeInStorage/requestRenderAll sequence every insertion path
+// in this app already uses.
+export const handleFileUpload = ({
+  file,
+  canvas,
+  syncShapeInStorage,
+}: {
+  file: File;
+  canvas: React.MutableRefObject<fabric.Canvas>;
+  syncShapeInStorage: (shape: fabric.Object) => void;
+}) => {
+  const finish = (obj: fabric.Object) => {
+    obj.set({
+      left: canvas.current.getWidth() / 2,
+      top: canvas.current.getHeight() / 2,
+      originX: "center",
+      originY: "center",
+    });
+    (obj as any).objectId = uuidv4();
+    canvas.current.add(obj);
+    canvas.current.setActiveObject(obj);
+    syncShapeInStorage(obj);
+    canvas.current.requestRenderAll();
+  };
+
+  if (file.type === "image/svg+xml") {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // fabric.js supports SVG loading at runtime (confirmed in the bundled
+      // fabric.js) but @types/fabric has no declaration for it.
+      (fabric as any).loadSVGFromString(reader.result as string, (objects: fabric.Object[]) => {
+        const group = new fabric.Group(objects);
+        group.scaleToWidth(200);
+        finish(group);
+      });
+    };
+    reader.readAsText(file);
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    fabric.Image.fromURL(reader.result as string, (img) => {
+      img.scaleToWidth(200);
+      finish(img);
+    });
+  };
+  reader.readAsDataURL(file);
 };
 
 export const createShape = (

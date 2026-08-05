@@ -10,14 +10,19 @@ import { shortcuts } from "@/constants";
 import { Comments } from "./comments/Comments";
 import { CursorChat, FlyingReaction, LiveCursors, ReactionSelector } from "./index";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "./ui/context-menu";
+import EditorZoomControls from "./EditorZoomControls";
 
 type Props = {
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>;
   undo: () => void;
   redo: () => void;
+  zoom: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
 };
 
-const Live = ({ canvasRef, undo, redo }: Props) => {
+const Live = ({ canvasRef, undo, redo, zoom, onZoomIn, onZoomOut, onZoomReset }: Props) => {
   /**
    * useOthers returns the list of other users in the room.
    *
@@ -223,7 +228,7 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
   return (
     <ContextMenu>
       <ContextMenuTrigger
-        className="relative flex h-full w-full flex-1 items-center justify-center"
+        className="relative flex h-full w-full flex-1 items-center justify-center overflow-auto bg-muted/60"
         id="canvas"
         style={{
           cursor: cursorState.mode === CursorMode.Chat ? "none" : "auto",
@@ -233,7 +238,11 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
       >
-        <canvas ref={canvasRef} />
+        {/* A bounded page, not a canvas that fills the viewport — the shadow
+            is what actually reads as "a page" against the muted workspace. */}
+        <div className="shadow-lg">
+          <canvas ref={canvasRef} />
+        </div>
 
         {/* Render the reactions */}
         {reactions.map((reaction) => (
@@ -270,6 +279,8 @@ const Live = ({ canvasRef, undo, redo }: Props) => {
 
         {/* Show the comments */}
         <Comments />
+
+        <EditorZoomControls zoom={zoom} onZoomIn={onZoomIn} onZoomOut={onZoomOut} onReset={onZoomReset} />
       </ContextMenuTrigger>
 
       <ContextMenuContent className="right-menu-content">

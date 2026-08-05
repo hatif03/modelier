@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { memo } from "react";
 
 import { navElements } from "@/constants";
@@ -10,15 +11,33 @@ import { Button } from "./ui/button";
 import ShapesMenu from "./ShapesMenu";
 import ActiveUsers from "./users/ActiveUsers";
 import { NewThread } from "./comments/NewThread";
+import EditableProjectName from "./EditableProjectName";
 
-const Navbar = ({ activeElement, imageInputRef, handleImageUpload, handleActiveElement }: NavbarProps) => {
+const Navbar = ({
+  activeElement,
+  imageInputRef,
+  handleImageUpload,
+  handleActiveElement,
+  projectId,
+  initialName,
+}: NavbarProps) => {
   const isActive = (value: string | Array<ActiveElement>) =>
     (activeElement && activeElement.value === value) ||
     (Array.isArray(value) && value.some((val) => val?.value === activeElement?.value));
 
   return (
     <nav className="flex select-none items-center justify-between gap-4 border-b border-border bg-card px-5 text-foreground">
-      <span className="font-serif text-lg tracking-tight">Modelier</span>
+      <div className="flex items-center gap-3">
+        <Link href="/" className="font-serif text-lg tracking-tight hover:text-accent">
+          Modelier
+        </Link>
+        {projectId && initialName !== undefined && (
+          <>
+            <span className="text-border">/</span>
+            <EditableProjectName projectId={projectId} initialName={initialName} />
+          </>
+        )}
+      </div>
 
       <ul className="flex flex-row">
         {navElements.map((item: ActiveElement | any) => (

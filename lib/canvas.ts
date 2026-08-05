@@ -14,21 +14,25 @@ import {
 import { defaultNavElement } from "@/constants";
 import { createSpecificShape } from "./shapes";
 
-// initialize fabric canvas
+// initialize fabric canvas at a fixed page size (the project's chosen format)
+// — a Canva-style bounded page, not a canvas that fills whatever the window
+// happens to be, so it never resizes on window resize either (see the removed
+// handleResize — a fixed page shouldn't reflow when the browser window does).
 export const initializeFabric = ({
   fabricRef,
   canvasRef,
+  width,
+  height,
 }: {
   fabricRef: React.MutableRefObject<fabric.Canvas | null>;
   canvasRef: React.MutableRefObject<HTMLCanvasElement | null>;
+  width: number;
+  height: number;
 }) => {
-  // get canvas element
-  const canvasElement = document.getElementById("canvas");
-
   // create fabric canvas
   const canvas = new fabric.Canvas(canvasRef.current, {
-    width: canvasElement?.clientWidth,
-    height: canvasElement?.clientHeight,
+    width,
+    height,
   });
 
   // set canvas reference to fabricRef so we can use it later anywhere outside canvas listener
@@ -381,17 +385,22 @@ export const renderCanvas = ({
   fabricRef.current?.renderAll();
 };
 
-// resize canvas dimensions on window resize
-export const handleResize = ({ canvas }: { canvas: fabric.Canvas | null }) => {
-  const canvasElement = document.getElementById("canvas");
-  if (!canvasElement) return;
+// allow zooming to min 20% and max 300% — the wheel and the on-screen
+// controls both funnel through zoomCanvas below, so there's one clamp,
+// one implementation.
+export const MIN_ZOOM = 0.2;
+export const MAX_ZOOM = 3;
 
-  if (!canvas) return;
+export const clampZoom = (zoom: number) => Math.min(Math.max(MIN_ZOOM, zoom), MAX_ZOOM);
 
-  canvas.setDimensions({
-    width: canvasElement.clientWidth,
-    height: canvasElement.clientHeight,
-  });
+// set the canvas zoom around a given point (defaults to canvas center) and
+// return the clamped value actually applied, so callers can sync UI state.
+export const zoomCanvas = (canvas: fabric.Canvas, zoom: number, point?: { x: number; y: number }) => {
+  const clamped = clampZoom(zoom);
+  const center = point ?? { x: canvas.getWidth() / 2, y: canvas.getHeight() / 2 };
+  canvas.zoomToPoint(center, clamped);
+  canvas.requestRenderAll();
+  return clamped;
 };
 
 // zoom canvas on mouse scroll
@@ -403,20 +412,15 @@ export const handleCanvasZoom = ({
   canvas: fabric.Canvas;
 }) => {
   const delta = options.e?.deltaY;
-  let zoom = canvas.getZoom();
-
-  // allow zooming to min 20% and max 100%
-  const minZoom = 0.2;
-  const maxZoom = 1;
   const zoomStep = 0.001;
 
-  // calculate zoom based on mouse scroll wheel with min and max zoom
-  zoom = Math.min(Math.max(minZoom, zoom + delta * zoomStep), maxZoom);
-
-  // set zoom to canvas
-  // zoomToPoint: http://fabricjs.com/docs/fabric.Canvas.html#zoomToPoint
-  canvas.zoomToPoint({ x: options.e.offsetX, y: options.e.offsetY }, zoom);
+  const zoom = zoomCanvas(canvas, canvas.getZoom() - delta * zoomStep, {
+    x: options.e.offsetX,
+    y: options.e.offsetY,
+  });
 
   options.e.preventDefault();
   options.e.stopPropagation();
+
+  return zoom;
 };

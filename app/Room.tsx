@@ -6,12 +6,23 @@ import { ClientSideSuspense } from "@liveblocks/react";
 import Loader from "@/components/Loader";
 import { RoomProvider } from "@/liveblocks.config";
 
-// roomId comes from the server (app/page.tsx already resolved the session via
-// middleware-guaranteed auth()) — no client-side session-fetch race here.
-// Every user used to share one hardcoded "fig-room", meaning every brand's
-// canvas was the same canvas; this scopes it per-user until real per-project
-// rooms exist (see Project model / project save-load).
-const Room = ({ roomId, children }: { roomId: string; children: React.ReactNode }) => {
+// roomId comes from the server (the editor page already resolved the project
+// + session via middleware-guaranteed auth()) — no client-side session-fetch
+// race here. Every project gets its own room now (previously every user
+// shared one hardcoded room, meaning every brand's canvas was the same
+// canvas). initialObjects only matters the very first time this room is ever
+// connected to (e.g. a project just created from a template) — Liveblocks
+// persists room storage server-side after that, which is what makes an open
+// project autosave with no explicit "Save" button.
+const Room = ({
+  roomId,
+  initialObjects,
+  children,
+}: {
+  roomId: string;
+  initialObjects?: Array<{ objectId: string } & Record<string, unknown>>;
+  children: React.ReactNode;
+}) => {
   return (
     <RoomProvider
       id={roomId}
@@ -33,7 +44,7 @@ const Room = ({ roomId, children }: { roomId: string; children: React.ReactNode 
          *
          * LiveMap: https://liveblocks.io/docs/api-reference/liveblocks-client#LiveMap
          */
-        canvasObjects: new LiveMap(),
+        canvasObjects: new LiveMap(initialObjects?.map((obj) => [obj.objectId, obj]) as any ?? []),
       }}
     >
       <ClientSideSuspense fallback={<Loader />}>
