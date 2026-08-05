@@ -33,3 +33,19 @@ export async function uploadPublicFile(path: string, buffer: Buffer, contentType
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
+
+// Downloads a YouCam result (image or video) and re-hosts it here — YouCam's
+// own result URLs are signed with a ~2-hour expiry (X-Amz-Expires=7200),
+// so anything that keeps the raw URL around (a GenerationVariant, a canvas
+// layer) goes dead a couple hours after generating. Call this once, right
+// when a result first succeeds, and store the returned URL instead.
+export async function rehostResultFile(sourceUrl: string, pathWithoutExtension: string): Promise<string> {
+  const res = await fetch(sourceUrl);
+  if (!res.ok) throw new Error(`Failed to download ${sourceUrl} for re-hosting (status ${res.status})`);
+
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const ext = contentType.includes("video") ? "mp4" : contentType.includes("png") ? "png" : "jpg";
+
+  return uploadPublicFile(`${pathWithoutExtension}.${ext}`, buffer, contentType);
+}

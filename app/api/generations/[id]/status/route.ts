@@ -7,6 +7,7 @@ import { getMakeupVtoStatus } from "@/lib/youcam/makeupVto";
 import { getImageToVideoStatus } from "@/lib/youcam/imageToVideo";
 import { friendlyYoucamError } from "@/lib/youcam/friendlyError";
 import { computeHarmonyScore, type Undertone } from "@/lib/colorHarmony";
+import { rehostResultFile } from "@/lib/storage";
 
 // The client polls this route every ~2s (see hooks/useInterval.ts). Each hit does
 // ONE status check per still-processing variant against YouCam directly — no
@@ -45,9 +46,20 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         if (!result || result.status === "running") return;
 
         if (result.status === "success") {
+          const sourceUrl = (result.results as { url?: string } | undefined)?.url;
+          let permanentUrl = sourceUrl;
+          if (sourceUrl) {
+            try {
+              permanentUrl = await rehostResultFile(sourceUrl, `generations/${variant.id}`);
+            } catch (rehostErr) {
+              // Falls back to the ephemeral YouCam URL rather than losing the
+              // result outright — it'll still work for the next ~2 hours.
+              console.warn(`Failed to re-host result for variant ${variant.id}`, rehostErr);
+            }
+          }
           await db.generationVariant.update({
             where: { id: variant.id },
-            data: { status: "success", resultImageUrl: result.results?.url },
+            data: { status: "success", resultImageUrl: permanentUrl },
           });
         } else {
           await db.generationVariant.update({
