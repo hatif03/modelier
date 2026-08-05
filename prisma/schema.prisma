@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime     @default(now())
+  brandKits    BrandKit[]
+  projects     Project[]
+  generations  Generation[]
+}
+
+model BrandKit {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  logoUrl     String?
+  colors      Json // { primary, secondary, accent, background, text }
+  fontDisplay String?
+  fontBody    String?
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+  projects    Project[]
+}
+
+model Template {
+  id           String   @id @default(cuid())
+  name         String
+  format       String // "instagram_post" | "instagram_story" | "product_listing"
+  category     String? // "apparel" | "beauty" | "general"
+  thumbnailUrl String
+  canvasJson   Json // serialized fabric.js object array; placeholder objects tagged isPlaceholder: true
+  isSystem     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  projects     Project[]
+}
+
+model Project {
+  id               String       @id @default(cuid())
+  userId           String
+  brandKitId       String?
+  templateId       String?
+  name             String
+  canvasJson       Json // persisted snapshot of the Liveblocks storage.canvasObjects LiveMap
+  liveblocksRoomId String?      @unique
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  user             User         @relation(fields: [userId], references: [id])
+  brandKit         BrandKit?    @relation(fields: [brandKitId], references: [id])
+  template         Template?    @relation(fields: [templateId], references: [id])
+  generations      Generation[]
+}
+
+// A curated, fully-synthetic (text-to-image generated, never a real person) reference
+// model used as the "src" image for apparel/beauty VTO. Seeded once via
+// scripts/seed-reference-models.ts, not created by end users.
+model ReferenceModel {
+  id                String   @id @default(cuid())
+  label             String // "Model A — deep warm, curvy"
+  bodyType          String // "slim" | "athletic" | "curvy" | "plus"
+  skinToneHex       String // detected via AI Skin Tone Analysis on the generated image, not hand-assigned
+  undertone         String // "warm" | "cool" | "neutral" — derived from skinToneHex
+  youcamFileId      String? // File API id for this model's photo, reused across generations to avoid re-upload
+  imageUrl          String // public/reference-models/{slug}.png
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  variants          GenerationVariant[]
+}
+
+model Generation {
+  id               String   @id @default(cuid())
+  userId           String
+  projectId        String?
+  flow             String // "apparel_vto" | "makeup_vto"
+  garmentCategory  String? // "upper_body" | "lower_body" | "full_body" | "auto" (apparel only)
+  sourceImageUrl   String? // uploaded product photo, once Storage is wired up
+  garmentColorHex  String? // dominant color of the uploaded product photo, for lib/colorHarmony.ts
+  isDiversityBatch Boolean  @default(false)
+  status           String // "pending" | "processing" | "success" | "partial" | "error"
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User      @relation(fields: [userId], references: [id])
+  project          Project?  @relation(fields: [projectId], references: [id])
+  variants         GenerationVariant[]
+}
+
+model GenerationVariant {
+  id                String   @id @default(cuid())
+  generationId      String
+  referenceModelId  String
+  youcamTaskId      String?
+  youcamFeature     String // "cloth-v3" | "makeup-vto"
+  status            String // "pending" | "processing" | "success" | "error"
+  resultImageUrl    String?
+  errorMessage      String?
+  colorHarmonyScore Int?
+  colorHarmonyNote  String?
+  isBestMatch       Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  generation        Generation     @relation(fields: [generationId], references: [id])
+  referenceModel    ReferenceModel @relation(fields: [referenceModelId], references: [id])
+}
