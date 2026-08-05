@@ -52,8 +52,11 @@ model Project {
   brandKitId       String?
   templateId       String?
   name             String
-  canvasJson       Json // persisted snapshot of the Liveblocks storage.canvasObjects LiveMap
-  liveblocksRoomId String?      @unique
+  width            Int          @default(500)
+  height           Int          @default(500)
+  format           String? // one of lib/formats.ts's ids, or "custom"
+  canvasJson       Json         @default("[]") // vestigial since Liveblocks storage is now the live source of truth for an open project
+  liveblocksRoomId String       @unique // `project-room-${id}` — every project gets its own room now
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   user             User         @relation(fields: [userId], references: [id])
@@ -82,7 +85,7 @@ model Generation {
   id               String   @id @default(cuid())
   userId           String
   projectId        String?
-  flow             String // "apparel_vto" | "makeup_vto"
+  flow             String // "apparel_vto" | "makeup_vto" | "image_to_video"
   garmentCategory  String? // "upper_body" | "lower_body" | "full_body" | "auto" (apparel only)
   sourceImageUrl   String? // uploaded product photo, once Storage is wired up
   garmentColorHex  String? // dominant color of the uploaded product photo, for lib/colorHarmony.ts
@@ -99,17 +102,19 @@ model Generation {
 model GenerationVariant {
   id                String   @id @default(cuid())
   generationId      String
-  referenceModelId  String
+  // Optional — the image_to_video flow animates an arbitrary source image
+  // (a canvas selection or a fresh upload), not a curated ReferenceModel.
+  referenceModelId  String?
   youcamTaskId      String?
-  youcamFeature     String // "cloth-v3" | "makeup-vto"
+  youcamFeature     String // "cloth-v3" | "makeup-vto" | "image-to-video"
   status            String // "pending" | "processing" | "success" | "error"
-  resultImageUrl    String?
+  resultImageUrl    String? // holds a video URL for the image_to_video flow
   errorMessage      String?
   colorHarmonyScore Int?
   colorHarmonyNote  String?
   isBestMatch       Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  generation        Generation     @relation(fields: [generationId], references: [id])
-  referenceModel    ReferenceModel @relation(fields: [referenceModelId], references: [id])
+  generation        Generation      @relation(fields: [generationId], references: [id])
+  referenceModel    ReferenceModel? @relation(fields: [referenceModelId], references: [id])
 }
