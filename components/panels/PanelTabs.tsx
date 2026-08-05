@@ -1,13 +1,15 @@
 "use client";
 
-export type PanelTabId = "layers" | "ai-studio" | "templates" | "brand-kit" | "projects";
+export type PanelTabId = "ai-studio" | "templates" | "brand-kit" | "uploads" | "layers";
 
+// Projects moved out — that's the Dashboard's job now (browse/open/delete),
+// not something you switch to from inside an already-open project.
 const TABS: { id: PanelTabId; label: string }[] = [
-  { id: "layers", label: "Layers" },
   { id: "ai-studio", label: "AI Model" },
   { id: "templates", label: "Templates" },
   { id: "brand-kit", label: "Brand Kit" },
-  { id: "projects", label: "Projects" },
+  { id: "uploads", label: "Uploads" },
+  { id: "layers", label: "Layers" },
 ];
 
 type Props = {
