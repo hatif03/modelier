@@ -72,7 +72,9 @@ const BrandKitPanel = ({ fabricRef, shapeRef, activeObjectRef, syncShapeInStorag
 
   const handleInsertLogo = () => {
     if (!brandKit?.logoUrl || !fabricRef.current) return;
-    insertImageFromUrl({ url: brandKit.logoUrl, canvas: fabricRef as any, shapeRef, syncShapeInStorage });
+    insertImageFromUrl({ url: brandKit.logoUrl, canvas: fabricRef as any, shapeRef, syncShapeInStorage }).catch(
+      () => {}
+    );
   };
 
   // Applies a saved brand value straight to whatever's currently selected on

@@ -189,7 +189,9 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
 
   const handleAddToCanvas = (url: string) => {
     if (!fabricRef.current) return;
-    insertImageFromUrl({ url, canvas: fabricRef as any, shapeRef, syncShapeInStorage });
+    insertImageFromUrl({ url, canvas: fabricRef as any, shapeRef, syncShapeInStorage }).catch(() =>
+      setErrorMessage("That image could no longer be loaded — it may be an old, expired result.")
+    );
   };
 
   const handleDropIntoPlaceholder = (url: string) => {
@@ -202,7 +204,7 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
       shapeRef,
       syncShapeInStorage,
       deleteShapeFromStorage,
-    });
+    }).catch(() => setErrorMessage("That image could no longer be loaded — it may be an old, expired result."));
     setHasPlaceholder(false);
   };
 
