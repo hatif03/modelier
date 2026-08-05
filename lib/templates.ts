@@ -2,6 +2,7 @@ import { fabric } from "fabric";
 import { v4 as uuidv4 } from "uuid";
 
 import { CustomFabricObject } from "@/types/type";
+import { loadHtmlImage } from "@/lib/shapes";
 
 // Clears the canvas/storage and re-adds every object from a template's
 // canvasJson, generating a fresh objectId per object so re-using the same
@@ -23,8 +24,21 @@ export function loadTemplateOntoCanvas({
   canvas.current.clear();
 
   canvasJson.forEach((objectData) => {
+    // A text object whose JSON omits `styles` reconstructs with
+    // `this.styles === undefined` (not `{}`) — fabric's own toObject()
+    // indexes into it by line number with no undefined-guard, so
+    // syncShapeInStorage's toJSON() call throws, gets swallowed by its own
+    // defensive try/catch, and the object is silently never persisted (only
+    // to vanish on the next storage-driven renderCanvas() clear). Templates
+    // seeded before this was caught can still carry the old JSON shape, so
+    // this is normalized here rather than trusting every source to have it.
+    const normalized =
+      objectData.type === "text" && (objectData as any).styles == null
+        ? { ...objectData, styles: {} }
+        : objectData;
+
     fabric.util.enlivenObjects(
-      [{ ...objectData, objectId: uuidv4() }],
+      [{ ...normalized, objectId: uuidv4() }],
       (enlivened: fabric.Object[]) => {
         enlivened.forEach((obj) => {
           canvas.current!.add(obj);
@@ -48,7 +62,7 @@ export function findEmptyPlaceholder(canvas: fabric.Canvas | null): CustomFabric
 // position, remove it, and add the generated image in its place — same
 // interaction model as any other image layer, no clip-masking/cropping (that's
 // an explicit P1, not required for the demo).
-export function dropVariantIntoPlaceholder({
+export async function dropVariantIntoPlaceholder({
   url,
   placeholder,
   canvas,
@@ -71,22 +85,28 @@ export function dropVariantIntoPlaceholder({
   const placeholderObjectId = placeholder.objectId;
   const zIndex = canvas.current.getObjects().indexOf(placeholder);
 
-  fabric.Image.fromURL(
-    url,
-    (img) => {
-      img.set({ left, top, angle: angle ?? 0, originX, originY });
-      img.scaleX = targetWidth / (img.width || targetWidth);
-      img.scaleY = targetHeight / (img.height || targetHeight);
-      (img as CustomFabricObject<fabric.Image>).objectId = uuidv4();
+  // Same CORS-fallback loader as insertImageFromUrl — YouCam's CDN has been
+  // observed intermittently serving a cache hit without CORS headers for a
+  // URL that worked moments earlier, which silently breaks a plain
+  // fabric.Image.fromURL(..., {crossOrigin: "anonymous"}) call.
+  let htmlImg: HTMLImageElement;
+  try {
+    htmlImg = await loadHtmlImage(url, "anonymous");
+  } catch {
+    htmlImg = await loadHtmlImage(url);
+  }
 
-      canvas.current!.remove(placeholder);
-      if (placeholderObjectId) deleteShapeFromStorage(placeholderObjectId);
+  const img = new fabric.Image(htmlImg);
+  img.set({ left, top, angle: angle ?? 0, originX, originY });
+  img.scaleX = targetWidth / (img.width || targetWidth);
+  img.scaleY = targetHeight / (img.height || targetHeight);
+  (img as CustomFabricObject<fabric.Image>).objectId = uuidv4();
 
-      canvas.current!.insertAt(img, zIndex >= 0 ? zIndex : canvas.current!.getObjects().length, false);
-      shapeRef.current = img;
-      syncShapeInStorage(img);
-      canvas.current!.requestRenderAll();
-    },
-    { crossOrigin: "anonymous" }
-  );
+  canvas.current.remove(placeholder);
+  if (placeholderObjectId) deleteShapeFromStorage(placeholderObjectId);
+
+  canvas.current.insertAt(img, zIndex >= 0 ? zIndex : canvas.current.getObjects().length, false);
+  shapeRef.current = img;
+  syncShapeInStorage(img);
+  canvas.current.requestRenderAll();
 }

@@ -1,12 +1,16 @@
 /**
- * Seeds the Template table with starter layouts (Instagram post/story,
- * product listing), each carrying one tagged placeholder region a generated
- * AI Model Studio variant can be dropped into (see lib/templates.ts).
+ * Seeds the Template table with starter layouts across the Dashboard's full
+ * format catalog (lib/formats.ts), each carrying a tagged placeholder region
+ * an AI Model Studio variant can be dropped into (see lib/templates.ts) and
+ * copy actually relevant to a small fashion/beauty seller.
  *
  * canvasJson here is plain fabric.js object JSON — the same shape
  * fabric.util.enlivenObjects() reconstructs directly, not real fabric.Object
  * instances (this is a Node script; fabric needs a DOM/canvas context this
- * project doesn't set up server-side).
+ * project doesn't set up server-side). Only "rect" and "text" types are used
+ * — "i-text" crashes on serialization (see lib/colorHarmony.ts-adjacent notes
+ * from earlier this session; fabric.IText's toObject() needs internal
+ * text-layout state that isn't populated immediately after enlivening).
  *
  * Run: npm run db:seed-templates
  */
@@ -24,6 +28,21 @@ const PLACEHOLDER_STYLE = {
   placeholderId: "hero",
 };
 
+const INK = "#211C19";
+
+function placeholder(left: number, top: number, width: number, height: number) {
+  return { type: "rect", left, top, width, height, ...PLACEHOLDER_STYLE };
+}
+
+function text(value: string, left: number, top: number, fontSize: number, fill = INK) {
+  // styles: {} (not omitted) — fabric.Text's own toObject() indexes into
+  // `this.styles` by line number with no undefined-guard; a freshly
+  // reconstructed Text whose source JSON omitted `styles` entirely ends up
+  // with `this.styles === undefined`, and serializing it later (which
+  // every syncShapeInStorage call does) throws.
+  return { type: "text", text: value, left, top, fontSize, fontFamily: "Georgia", fill, styles: {} };
+}
+
 const TEMPLATES = [
   {
     id: "tpl-ig-post",
@@ -31,9 +50,18 @@ const TEMPLATES = [
     format: "instagram_post",
     category: "apparel",
     thumbnailUrl: "#F1DCD2",
+    canvasJson: [placeholder(40, 40, 420, 340), text("NEW ARRIVAL", 40, 400, 22)],
+  },
+  {
+    id: "tpl-ig-post-sale",
+    name: "Instagram Post — Sale Announcement",
+    format: "instagram_post",
+    category: "apparel",
+    thumbnailUrl: "#BF6E52",
     canvasJson: [
-      { type: "rect", left: 40, top: 40, width: 400, height: 400, ...PLACEHOLDER_STYLE },
-      { type: "text", text: "NEW ARRIVAL", left: 40, top: 460, fontSize: 22, fontFamily: "Georgia", fill: "#211C19" },
+      text("SALE", 40, 30, 40, "#BF6E52"),
+      text("20% OFF EVERYTHING", 40, 85, 18),
+      placeholder(40, 130, 420, 330),
     ],
   },
   {
@@ -42,10 +70,31 @@ const TEMPLATES = [
     format: "instagram_story",
     category: "apparel",
     thumbnailUrl: "#EDE4D7",
-    canvasJson: [
-      { type: "rect", left: 40, top: 40, width: 300, height: 500, ...PLACEHOLDER_STYLE },
-      { type: "text", text: "LOOK OF THE DAY", left: 40, top: 560, fontSize: 18, fontFamily: "Georgia", fill: "#211C19" },
-    ],
+    canvasJson: [placeholder(30, 30, 340, 560), text("LOOK OF THE DAY", 30, 610, 20)],
+  },
+  {
+    id: "tpl-ig-story-bts",
+    name: "Instagram Story — Behind the Scenes",
+    format: "instagram_story",
+    category: "general",
+    thumbnailUrl: "#E2D9CC",
+    canvasJson: [text("BEHIND THE SCENES", 30, 40, 18), placeholder(30, 120, 340, 560)],
+  },
+  {
+    id: "tpl-pinterest-pin",
+    name: "Pinterest Pin — Shop the Look",
+    format: "pinterest_pin",
+    category: "apparel",
+    thumbnailUrl: "#F1DCD2",
+    canvasJson: [placeholder(30, 30, 340, 480), text("SHOP THE LOOK", 30, 530, 20)],
+  },
+  {
+    id: "tpl-facebook-post",
+    name: "Facebook Post — New Collection",
+    format: "facebook_post",
+    category: "apparel",
+    thumbnailUrl: "#EDE4D7",
+    canvasJson: [placeholder(30, 30, 300, 255), text("NEW COLLECTION", 360, 120, 22), text("Shop now", 360, 160, 14)],
   },
   {
     id: "tpl-listing",
@@ -53,10 +102,59 @@ const TEMPLATES = [
     format: "product_listing",
     category: "general",
     thumbnailUrl: "#E2D9CC",
+    canvasJson: [placeholder(40, 40, 350, 350), text("$0.00", 40, 410, 20)],
+  },
+  {
+    id: "tpl-etsy-banner",
+    name: "Shop Banner — Boutique Banner",
+    format: "etsy_banner",
+    category: "general",
+    thumbnailUrl: "#F1DCD2",
     canvasJson: [
-      { type: "rect", left: 40, top: 40, width: 350, height: 350, ...PLACEHOLDER_STYLE },
-      { type: "text", text: "$0.00", left: 40, top: 410, fontSize: 20, fontFamily: "Georgia", fill: "#211C19" },
+      text("YOUR SHOP NAME", 40, 45, 26),
+      text("Handmade with love", 40, 90, 13),
+      placeholder(480, 25, 100, 100),
     ],
+  },
+  {
+    id: "tpl-email-header",
+    name: "Email Header — Newsletter Banner",
+    format: "email_header",
+    category: "general",
+    thumbnailUrl: "#EDE4D7",
+    canvasJson: [text("YOUR BRAND", 40, 60, 28), text("New arrivals, every week", 40, 110, 13), placeholder(480, 50, 80, 80)],
+  },
+  {
+    id: "tpl-flyer",
+    name: "Flyer — Seasonal Sale",
+    format: "flyer",
+    category: "apparel",
+    thumbnailUrl: "#F1DCD2",
+    canvasJson: [
+      placeholder(30, 30, 340, 300),
+      text("SEASONAL SALE", 30, 350, 24),
+      text("Up to 40% off", 30, 390, 15),
+    ],
+  },
+  {
+    id: "tpl-business-card",
+    name: "Business Card — Minimal",
+    format: "business_card",
+    category: "general",
+    thumbnailUrl: "#E2D9CC",
+    canvasJson: [
+      text("Your Name", 30, 60, 20),
+      text("Founder, Your Brand", 30, 90, 12),
+      text("hello@yourbrand.com", 30, 130, 11),
+    ],
+  },
+  {
+    id: "tpl-thank-you",
+    name: "Thank-You Card — Order Thank-You",
+    format: "thank_you_card",
+    category: "general",
+    thumbnailUrl: "#F1DCD2",
+    canvasJson: [placeholder(50, 40, 200, 200), text("THANK YOU", 50, 260, 22), text("FOR YOUR ORDER", 50, 295, 15)],
   },
 ];
 
@@ -74,7 +172,7 @@ async function main() {
   }
 
   await db.$disconnect();
-  console.log("\nTemplate seed complete.");
+  console.log(`\nTemplate seed complete (${TEMPLATES.length} templates).`);
 }
 
 main().catch((err) => {

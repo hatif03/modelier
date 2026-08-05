@@ -1,11 +1,8 @@
 "use client";
 
-const FORMATS = [
-  { id: "all", label: "All" },
-  { id: "instagram_post", label: "IG Post" },
-  { id: "instagram_story", label: "IG Story" },
-  { id: "product_listing", label: "Listing" },
-];
+import { FORMATS } from "@/lib/formats";
+
+const OPTIONS = [{ id: "all", label: "All" }, ...FORMATS.map((f) => ({ id: f.id, label: f.label }))];
 
 type Props = {
   active: string;
@@ -14,7 +11,7 @@ type Props = {
 
 const TemplateFormatFilter = ({ active, onChange }: Props) => (
   <div className="flex flex-wrap gap-2 px-5 py-3">
-    {FORMATS.map((f) => (
+    {OPTIONS.map((f) => (
       <button
         key={f.id}
         onClick={() => onChange(f.id)}
