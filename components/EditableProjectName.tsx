@@ -5,9 +5,10 @@ import { useState } from "react";
 type Props = {
   projectId: string;
   initialName: string;
+  className?: string;
 };
 
-const EditableProjectName = ({ projectId, initialName }: Props) => {
+const EditableProjectName = ({ projectId, initialName, className }: Props) => {
   const [name, setName] = useState(initialName);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(initialName);
@@ -41,7 +42,7 @@ const EditableProjectName = ({ projectId, initialName }: Props) => {
             setIsEditing(false);
           }
         }}
-        className="border-b border-accent bg-transparent text-sm text-foreground outline-none"
+        className={className ?? "border-b border-accent bg-transparent text-sm text-foreground outline-none"}
       />
     );
   }
@@ -50,7 +51,7 @@ const EditableProjectName = ({ projectId, initialName }: Props) => {
     <button
       onClick={() => setIsEditing(true)}
       title="Rename project"
-      className="text-sm text-foreground hover:text-accent"
+      className={className ?? "text-sm text-foreground hover:text-accent"}
     >
       {name}
     </button>

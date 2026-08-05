@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 import { getFormat } from "@/lib/formats";
+import EditableProjectName from "@/components/EditableProjectName";
 
 type ProjectSummary = {
   id: string;
@@ -11,6 +13,7 @@ type ProjectSummary = {
   format: string | null;
   width: number;
   height: number;
+  thumbnailUrl: string | null;
   updatedAt: string;
 };
 
@@ -58,22 +61,41 @@ const ProjectGrid = ({ query }: Props) => {
               <div
                 key={project.id}
                 onClick={() => router.push(`/design/${project.id}`)}
-                className="group relative flex cursor-pointer flex-col justify-end overflow-hidden rounded-sm border border-border bg-card aspect-square p-3 hover:border-accent/60"
+                className="group relative flex cursor-pointer flex-col overflow-hidden rounded-sm border border-border bg-card aspect-square hover:border-accent/60"
               >
                 <button
                   onClick={(e) => handleDelete(e, project.id)}
-                  className="absolute right-2 top-2 hidden text-xs text-muted-foreground hover:text-destructive group-hover:block"
+                  className="absolute right-2 top-2 z-10 hidden text-xs text-muted-foreground hover:text-destructive group-hover:block"
                   aria-label="Delete"
                 >
                   ✕
                 </button>
-                <p className="truncate font-serif text-sm text-foreground">{project.name}</p>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {format?.label ?? "Custom"}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {new Date(project.updatedAt).toLocaleDateString()}
-                </p>
+                <div className="relative flex-1 bg-muted/40">
+                  {project.thumbnailUrl && (
+                    <Image
+                      src={project.thumbnailUrl}
+                      alt={project.name}
+                      fill
+                      unoptimized
+                      className="object-contain p-2"
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col gap-0.5 border-t border-border p-3">
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <EditableProjectName
+                      projectId={project.id}
+                      initialName={project.name}
+                      className="truncate text-left font-serif text-sm text-foreground hover:text-accent"
+                    />
+                  </div>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {format?.label ?? "Custom"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(project.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
             );
           })}

@@ -55,6 +55,7 @@ model Project {
   width            Int          @default(500)
   height           Int          @default(500)
   format           String? // one of lib/formats.ts's ids, or "custom"
+  thumbnailUrl     String? // captured client-side (canvas.toDataURL) a few seconds after each edit, see PUT /api/projects/[id]/thumbnail
   canvasJson       Json         @default("[]") // vestigial since Liveblocks storage is now the live source of truth for an open project
   liveblocksRoomId String       @unique // `project-room-${id}` — every project gets its own room now
   createdAt        DateTime     @default(now())
