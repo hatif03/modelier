@@ -39,6 +39,7 @@ export async function PUT(req: Request) {
 
   const form = await req.formData();
   const logo = form.get("logo");
+  const name = form.get("name");
   const colorsRaw = form.get("colors");
   const fontDisplay = form.get("fontDisplay");
   const fontBody = form.get("fontBody");
@@ -59,6 +60,7 @@ export async function PUT(req: Request) {
   const updated = await db.brandKit.update({
     where: { id: brandKit.id },
     data: {
+      name: typeof name === "string" && name.trim() ? name.trim() : undefined,
       logoUrl: logoUrl ?? undefined,
       colors: typeof colorsRaw === "string" ? JSON.parse(colorsRaw) : undefined,
       fontDisplay: typeof fontDisplay === "string" ? fontDisplay : undefined,
