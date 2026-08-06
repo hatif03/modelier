@@ -189,6 +189,41 @@ Apparel VTO and Skin AI are used together on the same creative decision (color-h
 
 ---
 
+## Jewelry Vertical (post-hackathon direction)
+
+Added after v1: a jewelry vertical, sequenced deliberately in two independent pieces
+rather than one bolted-on feature.
+
+**Jewelry Studio** — a standalone design tool (`/jewelry`, separate from the marketing
+canvas editor entirely, no Liveblocks room, single-user), where a non-designer actually
+designs a piece: a parts-based configurator (pick a band, stone, and metal finish from
+preset swatches) or a simplified freeform 2D sketch tool with gem-outline shapes and
+metal-color swatches. This is deliberately not a CAD tool. Real part-asset images are
+sourced/supplied separately from this build — the configurator's catalog
+(`JewelryPartOption`) is data-driven and starts empty until populated via
+`scripts/seed-jewelry-parts.ts`.
+
+**Jewelry VTO** (ring/necklace/earring/bracelet/watch virtual try-on) — kept
+deliberately separate from design. It only runs when explicitly requested: from inside
+Jewelry Studio ("Preview on a model," using the design's own rendered image as the
+product photo) or from the marketing canvas's AI Model Studio panel, for a seller's own
+real product photography — mirroring the existing apparel/beauty flows and extending the
+skin-AI fusion story with a metal-tone × undertone harmony signal (gold/rose-gold suits
+warm undertones, silver suits cool undertones).
+
+**Target audience sequencing:** near-term ICP is the same as the rest of the
+product — independent jewelry designers and Etsy/Shopify sellers who currently can't
+afford a photoshoot with a live hand/ear/wrist model per SKU. Fine/high-jewelry brands
+and boutiques are the stated growth direction once fidelity, customization, and
+brand-kit polish catch up — the wedge toward becoming the first choice for businesses in
+the high fashion market, not the opening move.
+
+**Explicitly deferred, not dropped:** a 3D preview capability was considered (an
+agent-orchestrated procedural-geometry pipeline was evaluated) but is out of scope for
+this build — it's a multi-stage, multi-LLM-call process with no simple hosted-API
+equivalent, not a fast per-request feature. Real R&D into a viable 3D approach is a
+named future direction, not a silently abandoned idea.
+
 ## Timeline Considerations
 
 - **Hard deadline:** August 17, 2026, 11:45am EDT. Today is August 3, 2026 — roughly two weeks.

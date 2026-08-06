@@ -156,6 +156,32 @@ const TEMPLATES = [
     thumbnailUrl: "#F1DCD2",
     canvasJson: [placeholder(50, 40, 200, 200), text("THANK YOU", 50, 260, 22), text("FOR YOUR ORDER", 50, 295, 15)],
   },
+  {
+    id: "tpl-ig-post-jewelry",
+    name: "Instagram Post — Jewelry Spotlight",
+    format: "instagram_post",
+    category: "jewelry",
+    thumbnailUrl: "#EDE4D7",
+    canvasJson: [placeholder(60, 60, 380, 300), text("NEW ARRIVAL", 60, 380, 22)],
+  },
+  {
+    id: "tpl-pinterest-pin-gift-guide",
+    name: "Pinterest Pin — Gift Guide",
+    format: "pinterest_pin",
+    category: "jewelry",
+    thumbnailUrl: "#F1DCD2",
+    canvasJson: [text("GIFT GUIDE", 30, 30, 24, "#BF6E52"), placeholder(30, 80, 340, 430), text("Shop the edit", 30, 530, 15)],
+  },
+  {
+    id: "tpl-listing-jewelry-macro",
+    name: "Product Listing — Jewelry Macro",
+    format: "product_listing",
+    category: "jewelry",
+    thumbnailUrl: "#E2D9CC",
+    // Tighter, more centered square than tpl-listing — jewelry product photos are
+    // near-square macro shots (ring/earring close-ups), not full garment flat-lays.
+    canvasJson: [placeholder(75, 75, 300, 300), text("$0.00", 75, 400, 20)],
+  },
 ];
 
 async function main() {
