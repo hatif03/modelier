@@ -31,6 +31,10 @@ yarn-error.log*
 # ad-hoc Playwright verification scripts + scratch assets, not part of the app
 /.scratch-tests
 
+# real jewelry part-asset image URLs, supplied separately per environment — see
+# jewelry-parts-manifest.example.json and scripts/seed-jewelry-parts.ts
+/jewelry-parts-manifest.json
+
 # vercel
 .vercel
 
