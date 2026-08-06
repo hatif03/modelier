@@ -12,6 +12,7 @@ import {
   handleCanvasObjectMoving,
   handleCanvasObjectScaling,
   handleCanvasSelectionCreated,
+  handleCanvasSelectionCleared,
   handleCanvasZoom,
   handlePathCreated,
   initializeFabric,
@@ -141,13 +142,15 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
    * object.
    */
   const [elementAttributes, setElementAttributes] = useState<Attributes>({
+    type: null,
     width: "",
     height: "",
     fontSize: "",
     fontFamily: "",
     fontWeight: "",
-    fill: "#aabbcc",
-    stroke: "#aabbcc",
+    fill: "",
+    stroke: "",
+    opacity: "",
   });
 
   /**
@@ -431,6 +434,19 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
     });
 
     /**
+     * listen to the selection cleared event on the canvas which is fired
+     * when the user deselects everything — without this, RightSidebar kept
+     * showing the last-selected object's stale attributes as if it still
+     * described a real current selection.
+     */
+    canvas.on("selection:cleared", () => {
+      handleCanvasSelectionCleared({
+        isEditingRef,
+        setElementAttributes,
+      });
+    });
+
+    /**
      * listen to the scaling event on the canvas which is fired when the
      * user scales an object on the canvas.
      *
@@ -508,28 +524,42 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
 
   // Capture a small preview a few seconds after each edit settles, so the
   // Dashboard can show a real snapshot of the design (Canva-style) instead
-  // of a blank tile. Debounced and non-fatal — a canvas that's briefly
-  // tainted by a cross-origin image without CORS just skips this round.
+  // of a blank tile. Both failure modes used to fail completely silently
+  // (empty catch blocks) — logged now, plus one bounded retry, so a project
+  // that's created (e.g. from a template) but never touched again still
+  // ends up with a thumbnail instead of staying null forever.
+  const captureThumbnail = (retriesLeft: number) => {
+    const canvas = fabricRef.current;
+    if (!canvas || !projectId) return;
+    try {
+      const dataUrl = canvas.toDataURL({ format: "png", multiplier: 0.3 });
+      fetch(dataUrl)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const form = new FormData();
+          form.set("thumbnail", blob, "thumbnail.png");
+          return fetch(`/api/projects/${projectId}/thumbnail`, { method: "PUT", body: form });
+        })
+        .then((res) => {
+          if (res && !res.ok) throw new Error(`Thumbnail upload failed with status ${res.status}`);
+        })
+        .catch((err) => {
+          console.error("Thumbnail capture failed", err);
+          if (retriesLeft > 0) setTimeout(() => captureThumbnail(retriesLeft - 1), 8000);
+        });
+    } catch (err) {
+      // Canvas is tainted by a cross-origin image without CORS headers —
+      // toDataURL() throws synchronously in this case, before any fetch.
+      console.error("Thumbnail capture skipped — canvas is tainted", err);
+      if (retriesLeft > 0) setTimeout(() => captureThumbnail(retriesLeft - 1), 8000);
+    }
+  };
+
   useEffect(() => {
     if (!projectId) return;
-    const timer = setTimeout(() => {
-      const canvas = fabricRef.current;
-      if (!canvas) return;
-      try {
-        const dataUrl = canvas.toDataURL({ format: "png", multiplier: 0.3 });
-        fetch(dataUrl)
-          .then((res) => res.blob())
-          .then((blob) => {
-            const form = new FormData();
-            form.set("thumbnail", blob, "thumbnail.png");
-            return fetch(`/api/projects/${projectId}/thumbnail`, { method: "PUT", body: form });
-          })
-          .catch(() => {});
-      } catch {
-        // tainted canvas — skip, next edit's capture will likely succeed
-      }
-    }, 4000);
+    const timer = setTimeout(() => captureThumbnail(1), 4000);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasObjects, projectId]);
 
   return (

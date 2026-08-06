@@ -1,5 +1,6 @@
 import { BaseUserMeta, User } from "@liveblocks/client";
 import { Gradient, Pattern } from "fabric/fabric-impl";
+import type { LucideIcon } from "lucide-react";
 
 export enum CursorMode {
   Hidden,
@@ -56,12 +57,18 @@ export type Attributes = {
   fontWeight: string;
   fill: string;
   stroke: string;
+  // 0-100 for display; "" when nothing is selected.
+  opacity: string;
+  // The selected fabric object's `type` (e.g. "rect", "i-text", "image"), or
+  // null when nothing is selected — RightSidebar branches its whole layout
+  // on this instead of always rendering every possible field.
+  type: string | null;
 };
 
 export type ActiveElement = {
   name: string;
   value: string;
-  icon: string;
+  icon: LucideIcon | "";
 } | null;
 
 export interface CustomFabricObject<T extends fabric.Object>
@@ -69,6 +76,8 @@ export interface CustomFabricObject<T extends fabric.Object>
   objectId?: string;
   isPlaceholder?: boolean;
   placeholderId?: string;
+  name?: string;
+  locked?: boolean;
 }
 
 export type ModifyShape = {
@@ -120,7 +129,7 @@ export type NavbarProps = {
 export type ShapesMenuProps = {
   item: {
     name: string;
-    icon: string;
+    icon: LucideIcon;
     value: Array<ActiveElement>;
   };
   activeElement: any;
@@ -174,6 +183,11 @@ export type CanvasPathCreated = {
 
 export type CanvasSelectionCreated = {
   options: fabric.IEvent;
+  isEditingRef: React.MutableRefObject<boolean>;
+  setElementAttributes: React.Dispatch<React.SetStateAction<Attributes>>;
+};
+
+export type CanvasSelectionCleared = {
   isEditingRef: React.MutableRefObject<boolean>;
   setElementAttributes: React.Dispatch<React.SetStateAction<Attributes>>;
 };

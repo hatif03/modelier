@@ -295,7 +295,7 @@ const Live = ({ canvasRef, undo, redo, zoom, onZoomIn, onZoomOut, onZoomReset }:
             onClick={() => handleContextMenuClick(item.name)}
           >
             <p>{item.name}</p>
-            <p className="text-xs text-primary-grey-300">{item.shortcut}</p>
+            <p className="text-xs text-muted-foreground">{item.shortcut}</p>
           </ContextMenuItem>
         ))}
       </ContextMenuContent>

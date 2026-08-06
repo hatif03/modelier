@@ -251,10 +251,14 @@ export const modifyShape = ({
   // if  property is width or height, set the scale of the selected element
   if (property === "width") {
     selectedElement.set("scaleX", 1);
-    selectedElement.set("width", value);  
+    selectedElement.set("width", value);
   } else if (property === "height") {
     selectedElement.set("scaleY", 1);
     selectedElement.set("height", value);
+  } else if (property === "opacity") {
+    // Attributes.opacity is a 0-100 string for display; fabric's own
+    // opacity is 0-1.
+    selectedElement.set("opacity", Number(value) / 100);
   } else {
     if (selectedElement[property as keyof object] === value) return;
     selectedElement.set(property as keyof object, value);
@@ -289,4 +293,56 @@ export const bringElement = ({
   syncShapeInStorage(selectedElement);
 
   // re-render all objects on the canvas
+};
+
+// Fabric has no built-in "align to canvas bounds" helper (bringToFront/
+// sendToBack above are its only native arrange operations) — this computes
+// left/top against the canvas's own dimensions and the object's scaled
+// bounding box, the same scaled-size math lib/canvas.ts already uses for
+// RightSidebar's width/height display.
+export const alignElement = ({
+  canvas,
+  alignment,
+  syncShapeInStorage,
+}: {
+  canvas: fabric.Canvas;
+  alignment: string;
+  syncShapeInStorage: (shape: fabric.Object) => void;
+}) => {
+  if (!canvas) return;
+
+  const selectedElement = canvas.getActiveObject();
+  if (!selectedElement || selectedElement?.type === "activeSelection") return;
+
+  const canvasWidth = canvas.getWidth();
+  const canvasHeight = canvas.getHeight();
+  const scaledWidth = selectedElement.getScaledWidth();
+  const scaledHeight = selectedElement.getScaledHeight();
+
+  switch (alignment) {
+    case "left":
+      selectedElement.set({ left: 0 });
+      break;
+    case "horizontalCenter":
+      selectedElement.set({ left: (canvasWidth - scaledWidth) / 2 });
+      break;
+    case "right":
+      selectedElement.set({ left: canvasWidth - scaledWidth });
+      break;
+    case "top":
+      selectedElement.set({ top: 0 });
+      break;
+    case "verticalCenter":
+      selectedElement.set({ top: (canvasHeight - scaledHeight) / 2 });
+      break;
+    case "bottom":
+      selectedElement.set({ top: canvasHeight - scaledHeight });
+      break;
+    default:
+      return;
+  }
+
+  selectedElement.setCoords();
+  canvas.requestRenderAll();
+  syncShapeInStorage(selectedElement);
 };

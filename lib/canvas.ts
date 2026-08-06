@@ -9,6 +9,7 @@ import {
   CanvasObjectScaling,
   CanvasPathCreated,
   CanvasSelectionCreated,
+  CanvasSelectionCleared,
   RenderCanvas,
 } from "@/types/type";
 import { defaultNavElement } from "@/constants";
@@ -301,10 +302,15 @@ export const handleCanvasSelectionCreated = ({
       : selectedElement?.height;
 
     setElementAttributes({
+      type: selectedElement?.type ?? null,
       width: scaledWidth?.toFixed(0).toString() || "",
       height: scaledHeight?.toFixed(0).toString() || "",
       fill: selectedElement?.fill?.toString() || "",
       stroke: selectedElement?.stroke || "",
+      opacity:
+        selectedElement?.opacity !== undefined
+          ? Math.round(selectedElement.opacity * 100).toString()
+          : "100",
       // @ts-ignore
       fontSize: selectedElement?.fontSize || "",
       // @ts-ignore
@@ -313,6 +319,29 @@ export const handleCanvasSelectionCreated = ({
       fontWeight: selectedElement?.fontWeight || "",
     });
   }
+};
+
+// clears RightSidebar's attributes when the selection is deselected — without
+// this, the panel keeps showing the last-selected object's stale values (or,
+// on first load, the hardcoded initial defaults) as if they described a real
+// current selection.
+export const handleCanvasSelectionCleared = ({
+  isEditingRef,
+  setElementAttributes,
+}: CanvasSelectionCleared) => {
+  if (isEditingRef.current) return;
+
+  setElementAttributes({
+    type: null,
+    width: "",
+    height: "",
+    fontSize: "",
+    fontFamily: "",
+    fontWeight: "",
+    fill: "",
+    stroke: "",
+    opacity: "",
+  });
 };
 
 // update element attributes when element is scaled

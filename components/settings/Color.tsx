@@ -28,9 +28,6 @@ const Color = ({
         onChange={(e) => handleInputChange(attributeType, e.target.value)}
       />
       <Label className='flex-1 text-foreground'>{attribute}</Label>
-      <Label className='flex h-6 w-8 items-center justify-center bg-muted text-[10px] leading-3 text-muted-foreground'>
-        90%
-      </Label>
     </div>
   </div>
 );
