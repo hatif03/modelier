@@ -4,18 +4,27 @@ import { useEffect, useState } from "react";
 import { fabric } from "fabric";
 
 import Dropzone from "@/components/ui/dropzone";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Separator } from "@/components/ui/separator";
 import { insertImageFromUrl } from "@/lib/shapes";
 import { findEmptyPlaceholder, dropVariantIntoPlaceholder } from "@/lib/templates";
 import { startGeneration, pollGeneration } from "@/lib/ai-model-studio/api";
-import { ApparelCategory, AIStudioFlow, GenerationView } from "@/lib/ai-model-studio/types";
+import {
+  ApparelCategory,
+  JewelryCategory,
+  AIStudioFlow,
+  GenerationView,
+  APPAREL_CATEGORIES,
+  JEWELRY_CATEGORIES,
+} from "@/lib/ai-model-studio/types";
 import useInterval from "@/hooks/useInterval";
+import CategorySelector from "@/components/shared/CategorySelector";
 
 import FlowSelector from "./FlowSelector";
-import ApparelCategorySelector from "./ApparelCategorySelector";
 import BeautyShadeSelector from "./BeautyShadeSelector";
 import VideoOptions from "./VideoOptions";
 import GenerateActions from "./GenerateActions";
-import VariantResultsGrid from "./VariantResultsGrid";
+import GenerationResultsGrid from "@/components/shared/generation-results/GenerationResultsGrid";
 import GenerationStatus from "./GenerationStatus";
 import RecentResultsStrip from "./RecentResultsStrip";
 
@@ -33,6 +42,7 @@ type Props = {
 const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteShapeFromStorage, allShapes }: Props) => {
   const [flow, setFlow] = useState<AIStudioFlow>("apparel_vto");
   const [category, setCategory] = useState<ApparelCategory | null>(null);
+  const [jewelryCategory, setJewelryCategory] = useState<JewelryCategory | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [shadeHex, setShadeHex] = useState("#C2185B");
   const [generation, setGeneration] = useState<GenerationView | null>(null);
@@ -57,11 +67,16 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
       .catch(() => setReferenceModels([]));
   }, []);
 
+  // Scoped to the currently selected flow — recents from a different flow
+  // (e.g. a jewelry render while browsing the apparel tab) used to show up
+  // here regardless of which tab was active, which read as this panel
+  // ignoring the flow you'd just picked.
   const refreshRecentVariants = () => {
     fetch("/api/generations")
       .then((res) => res.json())
       .then((json) => {
         const variants = (json.generations ?? [])
+          .filter((g: any) => g.flow === flow)
           .flatMap((g: any) =>
             (g.variants ?? [])
               .filter((v: any) => v.status === "success" && v.resultImageUrl && v.youcamFeature !== "image-to-video")
@@ -79,7 +94,7 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
       .catch(() => setRecentVariants([]));
   };
 
-  useEffect(refreshRecentVariants, []);
+  useEffect(refreshRecentVariants, [flow]);
 
   const activeCanvasObject = fabricRef.current?.getActiveObject();
   const hasCanvasImageSelection = activeCanvasObject?.type === "image";
@@ -88,7 +103,11 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
   const canGenerate =
     flow === "image_to_video"
       ? Boolean(videoPrompt.trim() && ((useCanvasSelection && hasCanvasImageSelection) || videoFile))
-      : referenceModels.length > 0 && (flow === "apparel_vto" ? Boolean(file && category) : Boolean(shadeHex));
+      : flow === "apparel_vto"
+        ? referenceModels.length > 0 && Boolean(file && category)
+        : flow === "jewelry_vto"
+          ? referenceModels.length > 0 && Boolean(file && jewelryCategory)
+          : referenceModels.length > 0 && Boolean(shadeHex);
 
   const handleFlowChange = (next: AIStudioFlow) => {
     setFlow(next);
@@ -107,6 +126,16 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
         return;
       }
     }
+    if (flow === "jewelry_vto") {
+      if (!file) {
+        setErrorMessage("Upload a clear jewelry product photo before generating.");
+        return;
+      }
+      if (!jewelryCategory) {
+        setErrorMessage("Pick a category so the AI knows what kind of piece this is.");
+        return;
+      }
+    }
 
     setErrorMessage(null);
     try {
@@ -114,6 +143,7 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
         file,
         flow,
         garmentCategory: flow === "apparel_vto" ? (category as ApparelCategory) : undefined,
+        jewelryCategory: flow === "jewelry_vto" ? (jewelryCategory as JewelryCategory) : undefined,
         shadeHex: flow === "makeup_vto" ? shadeHex : undefined,
         referenceModelIds,
       });
@@ -216,18 +246,45 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
     else handleAddToCanvas(url);
   };
 
+  // Don't have a product photo yet for the jewelry flow? Cross-links to
+  // Jewelry Studio so a user without an existing piece isn't stuck — only
+  // shown before a file is picked, so it doesn't clutter the flow once one is.
+  const showJewelryStudioHint = flow === "jewelry_vto" && !file;
+
   return (
     <div className="flex flex-col">
       <FlowSelector flow={flow} onChange={handleFlowChange} />
 
-      <RecentResultsStrip variants={recentVariants} onAddToCanvas={handleRecentResultClick} />
+      {recentVariants.length > 0 && (
+        <Accordion type="single" collapsible className="border-b border-border">
+          <AccordionItem value="recent" className="border-none">
+            <AccordionTrigger>Recent renders</AccordionTrigger>
+            <AccordionContent>
+              <RecentResultsStrip variants={recentVariants} onAddToCanvas={handleRecentResultClick} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
 
       {flow === "apparel_vto" ? (
         <>
-          <ApparelCategorySelector value={category} onChange={setCategory} />
+          <CategorySelector categories={APPAREL_CATEGORIES} value={category} onChange={setCategory} />
           <div className="px-5 py-3">
             <h3 className="mb-2 text-[10px] uppercase tracking-widest text-muted-foreground">Product photo</h3>
             <Dropzone file={file} onFileSelected={setFile} label="Upload a flat-lay or mannequin photo" />
+          </div>
+        </>
+      ) : flow === "jewelry_vto" ? (
+        <>
+          <CategorySelector categories={JEWELRY_CATEGORIES} value={jewelryCategory} onChange={setJewelryCategory} />
+          <div className="px-5 py-3">
+            <h3 className="mb-2 text-[10px] uppercase tracking-widest text-muted-foreground">Product photo</h3>
+            <Dropzone file={file} onFileSelected={setFile} label="Upload a clear photo on a plain background" />
+            {showJewelryStudioHint && (
+              <a href="/jewelry" className="mt-2 block text-xs text-muted-foreground hover:text-accent">
+                Don&apos;t have a product photo? Design one in Jewelry Studio →
+              </a>
+            )}
           </div>
         </>
       ) : flow === "makeup_vto" ? (
@@ -265,11 +322,14 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
       />
 
       {generation && (
-        <VariantResultsGrid
-          variants={generation.variants}
-          onAddToCanvas={handleAddToCanvas}
-          onDropIntoPlaceholder={hasPlaceholder ? handleDropIntoPlaceholder : undefined}
-        />
+        <>
+          <Separator />
+          <GenerationResultsGrid
+            variants={generation.variants}
+            onAddToCanvas={handleAddToCanvas}
+            onDropIntoPlaceholder={hasPlaceholder ? handleDropIntoPlaceholder : undefined}
+          />
+        </>
       )}
     </div>
   );

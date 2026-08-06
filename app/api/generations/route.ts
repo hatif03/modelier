@@ -6,6 +6,7 @@ import { uploadFile } from "@/lib/youcam/client";
 import { createClothesVtoTask, type GarmentCategory } from "@/lib/youcam/clothesVto";
 import { createMakeupVtoTask, lipColorEffectFromShade } from "@/lib/youcam/makeupVto";
 import { createImageToVideoTask, type VideoResolution } from "@/lib/youcam/imageToVideo";
+import { createJewelryVtoTask, POSE_BY_CATEGORY, type JewelryCategory } from "@/lib/youcam/jewelryVto";
 import { extractDominantColor } from "@/lib/colorHarmony";
 
 // Diversity batches multiply YouCam unit spend 1:1 with variant count — this cap
@@ -24,13 +25,18 @@ export async function POST(req: Request) {
   const file = form.get("file");
   const flow = form.get("flow");
   const garmentCategory = form.get("garmentCategory") as GarmentCategory | null;
+  const jewelryCategory = form.get("jewelryCategory") as JewelryCategory | null;
   const shadeHex = form.get("shadeHex");
   const referenceModelIds = form.getAll("referenceModelId").map(String);
   const projectId = form.get("projectId");
+  // Alternative to `file` for the jewelry flow only — lets Jewelry Studio's "Preview on
+  // a model" action pass its own already-hosted renderedImageUrl straight through as
+  // the VTO ref photo, with no re-upload round trip.
+  const refImageUrl = form.get("refImageUrl");
 
-  if (flow !== "apparel_vto" && flow !== "makeup_vto" && flow !== "image_to_video") {
+  if (flow !== "apparel_vto" && flow !== "makeup_vto" && flow !== "image_to_video" && flow !== "jewelry_vto") {
     return NextResponse.json(
-      { error: "flow must be 'apparel_vto', 'makeup_vto', or 'image_to_video'." },
+      { error: "flow must be 'apparel_vto', 'makeup_vto', 'jewelry_vto', or 'image_to_video'." },
       { status: 400 }
     );
   }
@@ -117,15 +123,31 @@ export async function POST(req: Request) {
   if (flow === "makeup_vto" && (typeof shadeHex !== "string" || !HEX_COLOR.test(shadeHex))) {
     return NextResponse.json({ error: "A valid shadeHex (e.g. #C2185B) is required for the beauty flow." }, { status: 400 });
   }
+  if (flow === "jewelry_vto") {
+    if (!jewelryCategory || !(jewelryCategory in POSE_BY_CATEGORY)) {
+      return NextResponse.json(
+        { error: "jewelryCategory must be one of ring, necklace, earring, bracelet, or watch." },
+        { status: 400 }
+      );
+    }
+    if (!(file instanceof File) && !(typeof refImageUrl === "string" && refImageUrl)) {
+      return NextResponse.json(
+        { error: "A jewelry product photo (upload, or refImageUrl) is required." },
+        { status: 400 }
+      );
+    }
+  }
 
   const referenceModels = await db.referenceModel.findMany({
     where: { id: { in: referenceModelIds }, isActive: true },
+    include: { poses: true },
   });
   if (referenceModels.length !== referenceModelIds.length) {
     return NextResponse.json({ error: "One or more selected reference models were not found." }, { status: 400 });
   }
 
   let refFileId: string | undefined;
+  let refFileUrl: string | undefined;
   let garmentColorHex: string | undefined;
 
   if (flow === "apparel_vto") {
@@ -152,12 +174,44 @@ export async function POST(req: Request) {
     }
   }
 
+  if (flow === "jewelry_vto") {
+    try {
+      let buffer: Buffer;
+      if (file instanceof File) {
+        buffer = Buffer.from(await file.arrayBuffer());
+        const uploaded = await uploadFile(buffer, {
+          contentType: file.type || "image/jpeg",
+          fileName: file.name || "upload.jpg",
+        });
+        refFileId = uploaded.fileId;
+      } else {
+        refFileUrl = refImageUrl as string;
+        const res = await fetch(refFileUrl);
+        if (!res.ok) throw new Error(`Failed to fetch refImageUrl (${res.status})`);
+        buffer = Buffer.from(await res.arrayBuffer());
+      }
+
+      // Best-effort, same as apparel — feeds classifyMetalTone in the status route.
+      try {
+        garmentColorHex = (await extractDominantColor(buffer)).hex;
+      } catch {
+        garmentColorHex = undefined;
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "We couldn't read that jewelry photo. Please upload a clear JPG or PNG under 10MB." },
+        { status: 400 }
+      );
+    }
+  }
+
   const generation = await db.generation.create({
     data: {
       userId: session.user.id,
       projectId: typeof projectId === "string" && projectId ? projectId : undefined,
       flow,
       garmentCategory: flow === "apparel_vto" ? garmentCategory : null,
+      jewelryCategory: flow === "jewelry_vto" ? jewelryCategory : null,
       garmentColorHex,
       isDiversityBatch: referenceModels.length > 1,
       status: "processing",
@@ -187,6 +241,44 @@ export async function POST(req: Request) {
           });
         }
 
+        if (flow === "jewelry_vto") {
+          const category = jewelryCategory as JewelryCategory;
+          const pose = POSE_BY_CATEGORY[category];
+          let srcFileId: string | undefined;
+          let srcFileUrl: string | undefined;
+
+          if (pose) {
+            const poseRow = model.poses.find((p) => p.pose === pose);
+            if (!poseRow) {
+              throw new Error(
+                `No ${pose} close-up seeded for ${model.label} yet — run "npm run db:seed-reference-model-poses".`
+              );
+            }
+            srcFileId = poseRow.youcamFileId ?? undefined;
+            srcFileUrl = poseRow.youcamFileId ? undefined : poseRow.imageUrl;
+          } else {
+            srcFileId = model.youcamFileId ?? undefined;
+            srcFileUrl = model.youcamFileId ? undefined : model.imageUrl;
+          }
+
+          const taskId = await createJewelryVtoTask(category, {
+            srcFileId,
+            srcFileUrl,
+            refFileId,
+            refFileUrl,
+          });
+          return db.generationVariant.create({
+            data: {
+              generationId: generation.id,
+              referenceModelId: model.id,
+              youcamTaskId: taskId,
+              youcamFeature: `${category}-vto`,
+              status: "processing",
+            },
+            include: { referenceModel: true },
+          });
+        }
+
         const taskId = await createMakeupVtoTask({
           srcFileId: model.youcamFileId ?? undefined,
           srcFileUrl: model.youcamFileId ? undefined : model.imageUrl,
@@ -203,11 +295,13 @@ export async function POST(req: Request) {
           include: { referenceModel: true },
         });
       } catch (err) {
+        const feature =
+          flow === "apparel_vto" ? "cloth-v3" : flow === "jewelry_vto" ? `${jewelryCategory as JewelryCategory}-vto` : "makeup-vto";
         return db.generationVariant.create({
           data: {
             generationId: generation.id,
             referenceModelId: model.id,
-            youcamFeature: flow === "apparel_vto" ? "cloth-v3" : "makeup-vto",
+            youcamFeature: feature,
             status: "error",
             errorMessage: err instanceof Error ? err.message : "Failed to start generation.",
           },

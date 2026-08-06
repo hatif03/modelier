@@ -1,44 +1,32 @@
 "use client";
 
 import { AIStudioFlow } from "@/lib/ai-model-studio/types";
+import { PillButton } from "@/components/ui/pill-button";
 
 type Props = {
   flow: AIStudioFlow;
   onChange: (flow: AIStudioFlow) => void;
 };
 
+const FLOWS: { id: AIStudioFlow; label: string }[] = [
+  { id: "apparel_vto", label: "Apparel" },
+  { id: "makeup_vto", label: "Beauty" },
+  { id: "jewelry_vto", label: "Jewelry" },
+  { id: "image_to_video", label: "Video" },
+];
+
 const FlowSelector = ({ flow, onChange }: Props) => (
-  <div className="flex gap-2 px-5 pt-4">
-    <button
-      onClick={() => onChange("apparel_vto")}
-      className={`flex-1 rounded-sm border px-3 py-2 text-xs uppercase tracking-wide ${
-        flow === "apparel_vto"
-          ? "border-accent bg-accent/10 font-semibold text-foreground"
-          : "border-border text-muted-foreground hover:border-accent/60"
-      }`}
-    >
-      Apparel
-    </button>
-    <button
-      onClick={() => onChange("makeup_vto")}
-      className={`flex-1 rounded-sm border px-3 py-2 text-xs uppercase tracking-wide ${
-        flow === "makeup_vto"
-          ? "border-accent bg-accent/10 font-semibold text-foreground"
-          : "border-border text-muted-foreground hover:border-accent/60"
-      }`}
-    >
-      Beauty
-    </button>
-    <button
-      onClick={() => onChange("image_to_video")}
-      className={`flex-1 rounded-sm border px-3 py-2 text-xs uppercase tracking-wide ${
-        flow === "image_to_video"
-          ? "border-accent bg-accent/10 font-semibold text-foreground"
-          : "border-border text-muted-foreground hover:border-accent/60"
-      }`}
-    >
-      Video
-    </button>
+  <div className="grid grid-cols-2 gap-2 px-5 pt-4">
+    {FLOWS.map((f) => (
+      <PillButton
+        key={f.id}
+        active={flow === f.id}
+        onClick={() => onChange(f.id)}
+        className="py-2 text-center uppercase tracking-wide"
+      >
+        {f.label}
+      </PillButton>
+    ))}
   </div>
 );
 

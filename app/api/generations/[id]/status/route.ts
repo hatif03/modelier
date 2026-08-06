@@ -5,8 +5,9 @@ import { db } from "@/lib/db";
 import { getClothesVtoStatus } from "@/lib/youcam/clothesVto";
 import { getMakeupVtoStatus } from "@/lib/youcam/makeupVto";
 import { getImageToVideoStatus } from "@/lib/youcam/imageToVideo";
-import { friendlyYoucamError } from "@/lib/youcam/friendlyError";
-import { computeHarmonyScore, type Undertone } from "@/lib/colorHarmony";
+import { getJewelryVtoStatus, jewelryFeatureToCategory } from "@/lib/youcam/jewelryVto";
+import { friendlyYoucamError, friendlyJewelryError } from "@/lib/youcam/friendlyError";
+import { computeHarmonyScore, computeJewelryHarmonyScore, classifyMetalTone, type Undertone } from "@/lib/colorHarmony";
 import { rehostResultFile } from "@/lib/storage";
 
 // The client polls this route every ~2s (see hooks/useInterval.ts). Each hit does
@@ -34,8 +35,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   await Promise.all(
     processingVariants.map(async (variant) => {
       try {
-        const result =
-          variant.youcamFeature === "cloth-v3"
+        const jewelryCategory = jewelryFeatureToCategory(variant.youcamFeature);
+        const result = jewelryCategory
+          ? await getJewelryVtoStatus(jewelryCategory, variant.youcamTaskId as string)
+          : variant.youcamFeature === "cloth-v3"
             ? await getClothesVtoStatus(variant.youcamTaskId as string)
             : variant.youcamFeature === "makeup-vto"
               ? await getMakeupVtoStatus(variant.youcamTaskId as string)
@@ -62,9 +65,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
             data: { status: "success", resultImageUrl: permanentUrl },
           });
         } else {
+          const rawError = result.errorMessage ?? result.error;
           await db.generationVariant.update({
             where: { id: variant.id },
-            data: { status: "error", errorMessage: friendlyYoucamError(result.errorMessage ?? result.error) },
+            data: {
+              status: "error",
+              errorMessage: jewelryCategory ? friendlyJewelryError(rawError, jewelryCategory) : friendlyYoucamError(rawError),
+            },
           });
         }
       } catch (err) {
@@ -99,20 +106,28 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   }
 
   // Score color harmony once, as soon as there's at least one successful
-  // variant left un-scored — apparel flow only (garmentColorHex is only ever
-  // set on that flow), and only against the real, seed-time-detected undertone
-  // on each ReferenceModel, never a live per-generation API call (see
-  // lib/colorHarmony.ts for why).
+  // variant left un-scored — apparel and jewelry flows only (garmentColorHex is only
+  // ever set on those), and only against the real, seed-time-detected undertone on
+  // each ReferenceModel, never a live per-generation API call (see lib/colorHarmony.ts
+  // for why). Jewelry reads garmentColorHex as a metal-tone hex instead of a garment
+  // color — see classifyMetalTone.
   const unscored = refreshed!.variants.filter(
     (v) => v.status === "success" && v.colorHarmonyScore === null && v.referenceModel
   );
   if (refreshed!.garmentColorHex && unscored.length > 0) {
+    const isJewelry = refreshed!.flow === "jewelry_vto";
+    const metalTone = isJewelry ? classifyMetalTone(refreshed!.garmentColorHex as string) : null;
     const scored = unscored.map((variant) => ({
       variant,
-      ...computeHarmonyScore(refreshed!.garmentColorHex as string, {
-        label: variant.referenceModel!.label,
-        undertone: variant.referenceModel!.undertone as Undertone,
-      }),
+      ...(metalTone
+        ? computeJewelryHarmonyScore(metalTone, {
+            label: variant.referenceModel!.label,
+            undertone: variant.referenceModel!.undertone as Undertone,
+          })
+        : computeHarmonyScore(refreshed!.garmentColorHex as string, {
+            label: variant.referenceModel!.label,
+            undertone: variant.referenceModel!.undertone as Undertone,
+          })),
     }));
 
     const successfulScored = refreshed!.variants

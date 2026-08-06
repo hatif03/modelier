@@ -2,6 +2,7 @@
 
 import Dropzone from "@/components/ui/dropzone";
 import { Button } from "@/components/ui/button";
+import { PillGroup } from "@/components/ui/pill-button";
 
 type Resolution = "480" | "720" | "1080";
 
@@ -19,7 +20,16 @@ type Props = {
   onDurationChange: (value: 5 | 10) => void;
 };
 
-const RESOLUTIONS: Resolution[] = ["480", "720", "1080"];
+const RESOLUTION_OPTIONS: { id: Resolution; label: string }[] = [
+  { id: "480", label: "480p" },
+  { id: "720", label: "720p" },
+  { id: "1080", label: "1080p" },
+];
+
+const DURATION_OPTIONS: { id: "5" | "10"; label: string }[] = [
+  { id: "5", label: "5s" },
+  { id: "10", label: "10s" },
+];
 
 const VideoOptions = ({
   file,
@@ -64,39 +74,21 @@ const VideoOptions = ({
     <div className="flex gap-3">
       <div className="flex flex-1 flex-col gap-2">
         <h3 className="text-[10px] uppercase tracking-widest text-muted-foreground">Resolution</h3>
-        <div className="flex gap-1.5">
-          {RESOLUTIONS.map((r) => (
-            <button
-              key={r}
-              onClick={() => onResolutionChange(r)}
-              className={`flex-1 rounded-sm border px-2 py-1.5 text-xs ${
-                resolution === r
-                  ? "border-accent bg-accent/10 font-semibold text-foreground"
-                  : "border-border text-muted-foreground hover:border-accent/60"
-              }`}
-            >
-              {r}p
-            </button>
-          ))}
-        </div>
+        <PillGroup
+          options={RESOLUTION_OPTIONS}
+          value={resolution}
+          onChange={onResolutionChange}
+          pillClassName="flex-1 text-center"
+        />
       </div>
       <div className="flex flex-1 flex-col gap-2">
         <h3 className="text-[10px] uppercase tracking-widest text-muted-foreground">Duration</h3>
-        <div className="flex gap-1.5">
-          {[5, 10].map((d) => (
-            <button
-              key={d}
-              onClick={() => onDurationChange(d as 5 | 10)}
-              className={`flex-1 rounded-sm border px-2 py-1.5 text-xs ${
-                durationSeconds === d
-                  ? "border-accent bg-accent/10 font-semibold text-foreground"
-                  : "border-border text-muted-foreground hover:border-accent/60"
-              }`}
-            >
-              {d}s
-            </button>
-          ))}
-        </div>
+        <PillGroup
+          options={DURATION_OPTIONS}
+          value={String(durationSeconds) as "5" | "10"}
+          onChange={(v) => onDurationChange(Number(v) as 5 | 10)}
+          pillClassName="flex-1 text-center"
+        />
       </div>
     </div>
   </div>

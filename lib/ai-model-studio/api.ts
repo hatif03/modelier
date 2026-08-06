@@ -2,17 +2,20 @@
 // Supabase's DATABASE_URL went live. This is the one file components import;
 // the shape of GenerationView/GenerationVariantView never changed from the
 // mock, so no component above this needed to change.
-import { ApparelCategory, AIStudioFlow, GenerationView, GenerationVariantView } from "./types";
+import { ApparelCategory, JewelryCategory, AIStudioFlow, GenerationView, GenerationVariantView } from "./types";
 
 export type StartGenerationInput = {
   file: File | null;
   flow: AIStudioFlow;
   garmentCategory?: ApparelCategory;
+  jewelryCategory?: JewelryCategory;
   shadeHex?: string;
   referenceModelIds: string[];
   prompt?: string;
   resolution?: "480" | "720" | "1080";
   durationSeconds?: 5 | 10;
+  /** Alternative to `file` for the jewelry flow — an already-hosted product photo URL, used by Jewelry Studio's "Preview on a model" action. */
+  refImageUrl?: string;
 };
 
 function toVariantView(v: any): GenerationVariantView {
@@ -43,10 +46,12 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
   if (input.file) form.set("file", input.file);
   form.set("flow", input.flow);
   if (input.garmentCategory) form.set("garmentCategory", input.garmentCategory);
+  if (input.jewelryCategory) form.set("jewelryCategory", input.jewelryCategory);
   if (input.shadeHex) form.set("shadeHex", input.shadeHex);
   if (input.prompt) form.set("prompt", input.prompt);
   if (input.resolution) form.set("resolution", input.resolution);
   if (input.durationSeconds) form.set("durationSeconds", String(input.durationSeconds));
+  if (input.refImageUrl) form.set("refImageUrl", input.refImageUrl);
   input.referenceModelIds.forEach((id) => form.append("referenceModelId", id));
 
   const res = await fetch("/api/generations", { method: "POST", body: form });

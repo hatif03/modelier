@@ -129,7 +129,62 @@ export function hueToColorName(hue: number): string {
   return "neutral";
 }
 
+// Metal-tone classification for jewelry product photos, feeding the same
+// warm/cool-undertone fusion the apparel flow already does with garment color — this is
+// the real jewelry-styling convention (warm undertones read best in gold/rose-gold,
+// cool undertones in silver/platinum). Reuses extractDominantColor unchanged; only the
+// bucketing below is jewelry-specific.
+export type MetalTone = "gold" | "rose_gold" | "silver" | "neutral";
+
+export function classifyMetalTone(hex: string): MetalTone {
+  const hue = hexToHue(hex);
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const max = Math.max(r, g, b) / 255;
+  const min = Math.min(r, g, b) / 255;
+  const lightness = (max + min) / 2;
+  const saturation = max === min ? 0 : (max - min) / (1 - Math.abs(max + min - 1));
+
+  if (saturation < 0.15) return lightness > 0.55 ? "silver" : "neutral";
+  if (hue >= 0 && hue <= 25) return saturation < 0.45 ? "rose_gold" : "gold";
+  if (hue > 25 && hue <= 65) return "gold";
+  return "neutral";
+}
+
 export type HarmonyResult = { score: number; note: string };
+
+// Mirrors computeHarmonyScore's exact score/note shape for the jewelry flow — gold and
+// rose-gold pair best with warm undertones, silver with cool undertones; a neutral
+// metal tone or undertone is a safe, versatile pairing either way.
+export function computeJewelryHarmonyScore(
+  metalTone: MetalTone,
+  model: { label: string; undertone: Undertone }
+): HarmonyResult {
+  const metalLabel = metalTone === "rose_gold" ? "rose gold" : metalTone;
+
+  if (metalTone === "neutral" || model.undertone === "neutral") {
+    return {
+      score: 72,
+      note: `This ${metalLabel} piece reads fairly neutral against ${model.label}'s ${model.undertone} undertone — a safe, versatile pairing.`,
+    };
+  }
+
+  const metalTemp: Undertone = metalTone === "silver" ? "cool" : "warm";
+
+  if (metalTemp === model.undertone) {
+    return {
+      score: 90,
+      note: `This ${metalLabel} piece pairs strongly with ${model.label}'s ${model.undertone} undertone — ${metalTone === "silver" ? "silver tends to suit cool undertones" : "gold tones tend to suit warm undertones"}.`,
+    };
+  }
+
+  return {
+    score: 45,
+    note: `This ${metalLabel} piece runs ${metalTemp} against ${model.label}'s ${model.undertone} undertone — a bolder, higher-contrast pairing.`,
+  };
+}
 
 export function computeHarmonyScore(
   garmentHex: string,

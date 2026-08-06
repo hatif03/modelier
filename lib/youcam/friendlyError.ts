@@ -1,3 +1,5 @@
+import type { JewelryCategory } from "./jewelryVto";
+
 // Maps YouCam's raw engine/preprocess error codes (see
 // https://docs.perfectcorp.com/reference/ai_clothes "Error Codes" section)
 // to specific, user-facing explanations — the PRD explicitly requires this
@@ -21,4 +23,34 @@ const FRIENDLY_ERRORS: Record<string, string> = {
 export function friendlyYoucamError(rawError: string | null | undefined): string {
   if (!rawError) return "Generation failed for an unknown reason. Please try again.";
   return FRIENDLY_ERRORS[rawError] ?? `Generation failed (${rawError}). Please try a different photo.`;
+}
+
+// Jewelry-specific hints layered on top of the shared vocabulary above — real jewelry
+// error codes are UNCONFIRMED against the live API (see lib/youcam/jewelryVto.ts's
+// header comment), so this only overrides the couple of messages that clearly need a
+// body-part-specific hint; anything else falls back to the shared map/generic message.
+const JEWELRY_HINTS: Partial<Record<JewelryCategory, Record<string, string>>> = {
+  ring: {
+    error_no_face: "We couldn't detect a clear hand in that photo. Please use one with the hand and fingers fully visible.",
+    error_pose: "We couldn't detect a clear hand pose in that photo. Use one with the palm or fingers clearly visible.",
+  },
+  necklace: {
+    error_no_face: "We couldn't detect a clear neck and upper chest area in that photo. Please use a more front-facing photo.",
+  },
+  earring: {
+    error_no_face: "We couldn't detect a clear ear in that photo. Please use one with the ear clearly visible.",
+  },
+  bracelet: {
+    error_no_face: "We couldn't detect a clear wrist in that photo. Please use one with the wrist fully visible.",
+    error_pose: "We couldn't detect a clear wrist pose in that photo. Use one with the wrist clearly visible.",
+  },
+  watch: {
+    error_no_face: "We couldn't detect a clear wrist in that photo. Please use one with the wrist fully visible.",
+    error_pose: "We couldn't detect a clear wrist pose in that photo. Use one with the wrist clearly visible.",
+  },
+};
+
+export function friendlyJewelryError(rawError: string | null | undefined, category: JewelryCategory): string {
+  if (!rawError) return "Generation failed for an unknown reason. Please try again.";
+  return JEWELRY_HINTS[category]?.[rawError] ?? friendlyYoucamError(rawError);
 }

@@ -1,33 +1,55 @@
+import {
+  MousePointer2,
+  Square,
+  Circle,
+  Triangle,
+  Minus,
+  Image as ImageIcon,
+  Pencil,
+  Type,
+  Trash2,
+  Eraser,
+  MessageCircle,
+  BringToFront,
+  SendToBack,
+  AlignLeft,
+  AlignCenterHorizontal,
+  AlignRight,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+} from "lucide-react";
+
 export const COLORS = ["#DC2626", "#D97706", "#059669", "#7C3AED", "#DB2777"];
 
 export const shapeElements = [
   {
-    icon: "/assets/rectangle.svg",
+    icon: Square,
     name: "Rectangle",
     value: "rectangle",
   },
   {
-    icon: "/assets/circle.svg",
+    icon: Circle,
     name: "Circle",
     value: "circle",
   },
   {
-    icon: "/assets/triangle.svg",
+    icon: Triangle,
     name: "Triangle",
     value: "triangle",
   },
   {
-    icon: "/assets/line.svg",
+    icon: Minus,
     name: "Line",
     value: "line",
   },
   {
-    icon: "/assets/image.svg",
+    icon: ImageIcon,
     name: "Image",
     value: "image",
   },
   {
-    icon: "/assets/freeform.svg",
+    icon: Pencil,
     name: "Free Drawing",
     value: "freeform",
   },
@@ -35,46 +57,46 @@ export const shapeElements = [
 
 export const navElements = [
   {
-    icon: "/assets/select.svg",
+    icon: MousePointer2,
     name: "Select",
     value: "select",
   },
   {
-    icon: "/assets/rectangle.svg",
+    icon: Square,
     name: "Rectangle",
     value: shapeElements,
   },
   {
-    icon: "/assets/text.svg",
+    icon: Type,
     value: "text",
     name: "Text",
   },
   {
-    icon: "/assets/delete.svg",
+    icon: Trash2,
     value: "delete",
     name: "Delete",
   },
   {
-    icon: "/assets/reset.svg",
+    icon: Eraser,
     value: "reset",
-    name: "Reset",
+    name: "Clear canvas",
   },
   {
-    icon: "/assets/comments.svg",
+    icon: MessageCircle,
     value: "comments",
     name: "Comments",
   },
 ];
 
 export const defaultNavElement = {
-  icon: "/assets/select.svg",
+  icon: MousePointer2,
   name: "Select",
   value: "select",
 };
 
 export const directionOptions = [
-  { label: "Bring to Front", value: "front", icon: "/assets/front.svg" },
-  { label: "Send to Back", value: "back", icon: "/assets/back.svg" },
+  { label: "Bring to Front", value: "front", icon: BringToFront },
+  { label: "Send to Back", value: "back", icon: SendToBack },
 ];
 
 export const fontFamilyOptions = [
@@ -159,20 +181,20 @@ export const fontWeightOptions = [
 ];
 
 export const alignmentOptions = [
-  { value: "left", label: "Align Left", icon: "/assets/align-left.svg" },
+  { value: "left", label: "Align Left", icon: AlignLeft },
   {
     value: "horizontalCenter",
     label: "Align Horizontal Center",
-    icon: "/assets/align-horizontal-center.svg",
+    icon: AlignCenterHorizontal,
   },
-  { value: "right", label: "Align Right", icon: "/assets/align-right.svg" },
-  { value: "top", label: "Align Top", icon: "/assets/align-top.svg" },
+  { value: "right", label: "Align Right", icon: AlignRight },
+  { value: "top", label: "Align Top", icon: AlignStartVertical },
   {
     value: "verticalCenter",
     label: "Align Vertical Center",
-    icon: "/assets/align-vertical-center.svg",
+    icon: AlignCenterVertical,
   },
-  { value: "bottom", label: "Align Bottom", icon: "/assets/align-bottom.svg" },
+  { value: "bottom", label: "Align Bottom", icon: AlignEndVertical },
 ];
 
 export const shortcuts = [
