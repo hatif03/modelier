@@ -1,6 +1,16 @@
 import jsPDF from "jspdf";
 import { twMerge } from "tailwind-merge";
 import { type ClassValue, clsx } from "clsx";
+import {
+  Square,
+  Circle as CircleIcon,
+  Triangle,
+  Minus,
+  Type,
+  Image as ImageIcon,
+  Pencil,
+  type LucideIcon,
+} from "lucide-react";
 
 const adjectives = [
   "Happy",
@@ -46,55 +56,31 @@ export function generateRandomName(): string {
   return `${randomAdjective} ${randomAnimal}`;
 }
 
-export const getShapeInfo = (shapeType: string) => {
+export const getShapeInfo = (shapeType: string): { icon: LucideIcon; name: string } => {
   switch (shapeType) {
     case "rect":
-      return {
-        icon: "/assets/rectangle.svg",
-        name: "Rectangle",
-      };
+      return { icon: Square, name: "Rectangle" };
 
     case "circle":
-      return {
-        icon: "/assets/circle.svg",
-        name: "Circle",
-      };
+      return { icon: CircleIcon, name: "Circle" };
 
     case "triangle":
-      return {
-        icon: "/assets/triangle.svg",
-        name: "Triangle",
-      };
+      return { icon: Triangle, name: "Triangle" };
 
     case "line":
-      return {
-        icon: "/assets/line.svg",
-        name: "Line",
-      };
+      return { icon: Minus, name: "Line" };
 
     case "i-text":
-      return {
-        icon: "/assets/text.svg",
-        name: "Text",
-      };
+      return { icon: Type, name: "Text" };
 
     case "image":
-      return {
-        icon: "/assets/image.svg",
-        name: "Image",
-      };
+      return { icon: ImageIcon, name: "Image" };
 
     case "freeform":
-      return {
-        icon: "/assets/freeform.svg",
-        name: "Free Drawing",
-      };
+      return { icon: Pencil, name: "Free Drawing" };
 
     default:
-      return {
-        icon: "/assets/rectangle.svg",
-        name: shapeType,
-      };
+      return { icon: Square, name: shapeType };
   }
 };
 

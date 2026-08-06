@@ -48,20 +48,9 @@ const config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
-        // Legacy bridge: keeps every existing `primary-green`/`primary-grey-*`
-        // className compiling with new values while the shell repaint lands.
-        // `primary-black` is deliberately NOT bridged here — it covered two
-        // incompatible roles (panel background vs. text-on-accent) and gets
-        // targeted per-usage edits instead (see Navbar/LeftSidebar/RightSidebar/ShapesMenu).
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          green: "#BF6E52",
-          grey: {
-            100: "#EDE4D7",
-            200: "#E2D9CC",
-            300: "#5B5450",
-          },
         },
       },
       fontFamily: {
