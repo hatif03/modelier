@@ -3,12 +3,13 @@
 import { useState } from "react";
 
 type Props = {
-  projectId: string;
+  patchUrl: string;
+  method?: "PATCH" | "PUT";
   initialName: string;
   className?: string;
 };
 
-const EditableProjectName = ({ projectId, initialName, className }: Props) => {
+const EditableProjectName = ({ patchUrl, method = "PATCH", initialName, className }: Props) => {
   const [name, setName] = useState(initialName);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(initialName);
@@ -21,8 +22,8 @@ const EditableProjectName = ({ projectId, initialName, className }: Props) => {
       return;
     }
     setName(trimmed);
-    await fetch(`/api/projects/${projectId}`, {
-      method: "PATCH",
+    await fetch(patchUrl, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: trimmed }),
     }).catch(() => {});
@@ -50,7 +51,7 @@ const EditableProjectName = ({ projectId, initialName, className }: Props) => {
   return (
     <button
       onClick={() => setIsEditing(true)}
-      title="Rename project"
+      title="Rename"
       className={className ?? "text-sm text-foreground hover:text-accent"}
     >
       {name}
