@@ -186,6 +186,8 @@ export const handleCanvasMouseUp = ({
   setActiveElement,
 }: CanvasMouseUp) => {
   isDrawing.current = false;
+  clearAlignmentGuides(canvas);
+  canvas.requestRenderAll();
   if (selectedShapeRef.current === "freeform") return;
 
   // sync shape in storage as drawing is stopped
@@ -237,7 +239,54 @@ export const handlePathCreated = ({
   syncShapeInStorage(path);
 };
 
-// check how object is moving on canvas and restrict it to canvas boundaries
+// Live alignment/snap guides — Canva-style dashed guide lines that appear
+// while dragging an object near the canvas center or another object's
+// edges/center, and snap the drag to that position within a small pixel
+// threshold. Guide lines are plain fabric.Line objects tagged with
+// `data.isAlignmentGuide` so they're excluded from hit-testing, storage sync
+// (nothing syncs objects it didn't explicitly create), and from acting as
+// snap targets for each other.
+const SNAP_THRESHOLD = 6;
+
+const getAlignmentGuideColor = () => {
+  if (typeof document === "undefined") return "#c06f54";
+  const value = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+  return value ? `hsl(${value})` : "#c06f54";
+};
+
+export const clearAlignmentGuides = (canvas: fabric.Canvas) => {
+  canvas
+    .getObjects()
+    .filter((object: any) => object.data?.isAlignmentGuide)
+    .forEach((guide) => canvas.remove(guide));
+};
+
+const addAlignmentGuide = (canvas: fabric.Canvas, coords: [number, number, number, number]) => {
+  const guide = new fabric.Line(coords, {
+    stroke: getAlignmentGuideColor(),
+    strokeWidth: 1,
+    strokeDashArray: [4, 4],
+    selectable: false,
+    evented: false,
+    excludeFromExport: true,
+  });
+  (guide as any).data = { isAlignmentGuide: true };
+  canvas.add(guide);
+  canvas.bringToFront(guide);
+};
+
+type Edges = { left: number; right: number; top: number; bottom: number; centerX: number; centerY: number };
+
+const edgesOf = (object: fabric.Object): Edges => {
+  const left = object.left || 0;
+  const top = object.top || 0;
+  const width = object.getScaledWidth();
+  const height = object.getScaledHeight();
+  return { left, right: left + width, top, bottom: top + height, centerX: left + width / 2, centerY: top + height / 2 };
+};
+
+// check how object is moving on canvas, restrict it to canvas boundaries, and
+// snap it to the canvas center or nearby objects' edges/centers
 export const handleCanvasObjectMoving = ({
   options,
 }: {
@@ -273,6 +322,77 @@ export const handleCanvasObjectMoving = ({
       )
     );
   }
+
+  clearAlignmentGuides(canvas);
+
+  const canvasWidth = canvas.width || 0;
+  const canvasHeight = canvas.height || 0;
+  const targetEdges = edgesOf(target);
+
+  let snapX: number | null = null;
+  let snapY: number | null = null;
+
+  // snap to canvas center (horizontal + vertical)
+  const canvasCenterX = canvasWidth / 2;
+  const canvasCenterY = canvasHeight / 2;
+  if (Math.abs(targetEdges.centerX - canvasCenterX) < SNAP_THRESHOLD) {
+    snapX = canvasCenterX - (targetEdges.right - targetEdges.left) / 2;
+    addAlignmentGuide(canvas, [canvasCenterX, 0, canvasCenterX, canvasHeight]);
+  }
+  if (Math.abs(targetEdges.centerY - canvasCenterY) < SNAP_THRESHOLD) {
+    snapY = canvasCenterY - (targetEdges.bottom - targetEdges.top) / 2;
+    addAlignmentGuide(canvas, [0, canvasCenterY, canvasWidth, canvasCenterY]);
+  }
+
+  // snap to other objects' edges/centers
+  const others = canvas.getObjects().filter((object: any) => object !== target && !object.data?.isAlignmentGuide);
+  for (const other of others) {
+    const otherEdges = edgesOf(other);
+    const width = targetEdges.right - targetEdges.left;
+    const height = targetEdges.bottom - targetEdges.top;
+
+    if (snapX === null) {
+      const xMatches: Array<[number, number]> = [
+        [targetEdges.left, otherEdges.left],
+        [targetEdges.right, otherEdges.right],
+        [targetEdges.centerX, otherEdges.centerX],
+        [targetEdges.left, otherEdges.right],
+        [targetEdges.right, otherEdges.left],
+      ];
+      for (const [edge, ref] of xMatches) {
+        if (Math.abs(edge - ref) < SNAP_THRESHOLD) {
+          snapX = target.left! + (ref - edge);
+          const guideTop = Math.min(targetEdges.top, otherEdges.top) - 20;
+          const guideBottom = Math.max(targetEdges.bottom, otherEdges.bottom) + 20;
+          addAlignmentGuide(canvas, [ref, guideTop, ref, guideBottom]);
+          break;
+        }
+      }
+    }
+
+    if (snapY === null) {
+      const yMatches: Array<[number, number]> = [
+        [targetEdges.top, otherEdges.top],
+        [targetEdges.bottom, otherEdges.bottom],
+        [targetEdges.centerY, otherEdges.centerY],
+        [targetEdges.top, otherEdges.bottom],
+        [targetEdges.bottom, otherEdges.top],
+      ];
+      for (const [edge, ref] of yMatches) {
+        if (Math.abs(edge - ref) < SNAP_THRESHOLD) {
+          snapY = target.top! + (ref - edge);
+          const guideLeft = Math.min(targetEdges.left, otherEdges.left) - 20;
+          const guideRight = Math.max(targetEdges.right, otherEdges.right) + 20;
+          addAlignmentGuide(canvas, [guideLeft, ref, guideRight, ref]);
+          break;
+        }
+      }
+    }
+  }
+
+  if (snapX !== null) target.set({ left: snapX });
+  if (snapY !== null) target.set({ top: snapY });
+  target.setCoords();
 };
 
 // set element attributes when element is selected

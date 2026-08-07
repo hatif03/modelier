@@ -115,6 +115,8 @@ export type RightSidebarProps = {
   activeObjectRef: React.RefObject<fabric.Object | null>;
   isEditingRef: React.MutableRefObject<boolean>;
   syncShapeInStorage: (obj: any) => void;
+  projectId?: string;
+  initialName?: string;
 };
 
 export type NavbarProps = {
