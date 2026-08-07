@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import { getClothesVtoStatus } from "@/lib/youcam/clothesVto";
 import { getMakeupVtoStatus } from "@/lib/youcam/makeupVto";
 import { getImageToVideoStatus } from "@/lib/youcam/imageToVideo";
+import { getTextToImageStatus } from "@/lib/youcam/textToImage";
 import { getJewelryVtoStatus, jewelryFeatureToCategory } from "@/lib/youcam/jewelryVto";
+import { getEffectStatus, isDataFeature } from "@/lib/youcam/effectDispatch";
 import { friendlyYoucamError, friendlyJewelryError } from "@/lib/youcam/friendlyError";
 import { computeHarmonyScore, computeJewelryHarmonyScore, classifyMetalTone, type Undertone } from "@/lib/colorHarmony";
 import { rehostResultFile } from "@/lib/storage";
@@ -38,17 +40,26 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         const jewelryCategory = jewelryFeatureToCategory(variant.youcamFeature);
         const result = jewelryCategory
           ? await getJewelryVtoStatus(jewelryCategory, variant.youcamTaskId as string)
-          : variant.youcamFeature === "cloth-v3"
+          : variant.youcamFeature === "cloth-v4"
             ? await getClothesVtoStatus(variant.youcamTaskId as string)
             : variant.youcamFeature === "makeup-vto"
               ? await getMakeupVtoStatus(variant.youcamTaskId as string)
               : variant.youcamFeature === "image-to-video"
                 ? await getImageToVideoStatus(variant.youcamTaskId as string)
-                : null;
+                : variant.youcamFeature === "text-to-image/youcam"
+                  ? await getTextToImageStatus(variant.youcamTaskId as string)
+                  : await getEffectStatus(variant.youcamFeature, variant.youcamTaskId as string);
 
         if (!result || result.status === "running") return;
 
-        if (result.status === "success") {
+        if (result.status === "success" && isDataFeature(variant.youcamFeature)) {
+          // Skin/face analysis effects return scores/metrics, not an image —
+          // nothing to re-host, store the raw result for the score-card UI.
+          await db.generationVariant.update({
+            where: { id: variant.id },
+            data: { status: "success", analysisResult: result.results ?? {} },
+          });
+        } else if (result.status === "success") {
           const sourceUrl = (result.results as { url?: string } | undefined)?.url;
           let permanentUrl = sourceUrl;
           if (sourceUrl) {

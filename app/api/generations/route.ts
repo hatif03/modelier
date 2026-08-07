@@ -2,11 +2,20 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { uploadFile } from "@/lib/youcam/client";
+import { uploadFile, YoucamApiError } from "@/lib/youcam/client";
 import { createClothesVtoTask, type GarmentCategory } from "@/lib/youcam/clothesVto";
 import { createMakeupVtoTask, lipColorEffectFromShade } from "@/lib/youcam/makeupVto";
 import { createImageToVideoTask, type VideoResolution } from "@/lib/youcam/imageToVideo";
-import { createJewelryVtoTask, POSE_BY_CATEGORY, type JewelryCategory } from "@/lib/youcam/jewelryVto";
+import { createTextToImageTask } from "@/lib/youcam/textToImage";
+import {
+  createJewelryVtoTask,
+  POSE_BY_CATEGORY,
+  JEWELRY_FEATURE_SLUGS,
+  type JewelryCategory,
+  type RingFinger,
+} from "@/lib/youcam/jewelryVto";
+import { friendlyJewelryError, friendlyYoucamError } from "@/lib/youcam/friendlyError";
+import { createEffectTask, type EffectId } from "@/lib/youcam/effectDispatch";
 import { extractDominantColor } from "@/lib/colorHarmony";
 
 // Diversity batches multiply YouCam unit spend 1:1 with variant count — this cap
@@ -26,6 +35,9 @@ export async function POST(req: Request) {
   const flow = form.get("flow");
   const garmentCategory = form.get("garmentCategory") as GarmentCategory | null;
   const jewelryCategory = form.get("jewelryCategory") as JewelryCategory | null;
+  const ringFinger = form.get("ringFinger") as RingFinger | null;
+  const ringWearingLocationRaw = form.get("ringWearingLocation");
+  const ringWearingLocation = ringWearingLocationRaw ? Number(ringWearingLocationRaw) : undefined;
   const shadeHex = form.get("shadeHex");
   const referenceModelIds = form.getAll("referenceModelId").map(String);
   const projectId = form.get("projectId");
@@ -34,11 +46,136 @@ export async function POST(req: Request) {
   // the VTO ref photo, with no re-upload round trip.
   const refImageUrl = form.get("refImageUrl");
 
-  if (flow !== "apparel_vto" && flow !== "makeup_vto" && flow !== "image_to_video" && flow !== "jewelry_vto") {
+  if (
+    flow !== "apparel_vto" &&
+    flow !== "makeup_vto" &&
+    flow !== "image_to_video" &&
+    flow !== "jewelry_vto" &&
+    flow !== "effect" &&
+    flow !== "backdrop"
+  ) {
     return NextResponse.json(
-      { error: "flow must be 'apparel_vto', 'makeup_vto', 'jewelry_vto', or 'image_to_video'." },
+      { error: "flow must be 'apparel_vto', 'makeup_vto', 'jewelry_vto', 'image_to_video', 'effect', or 'backdrop'." },
       { status: 400 }
     );
+  }
+
+  // "backdrop" generates a scene from a prompt alone — no source photo, no
+  // ReferenceModel diversity concept — same short-circuit shape as
+  // image_to_video below.
+  if (flow === "backdrop") {
+    const prompt = form.get("prompt");
+    if (typeof prompt !== "string" || !prompt.trim()) {
+      return NextResponse.json({ error: "Describe the scene you want to generate." }, { status: 400 });
+    }
+
+    const generation = await db.generation.create({
+      data: {
+        userId: session.user.id,
+        projectId: typeof projectId === "string" && projectId ? projectId : undefined,
+        flow,
+        status: "processing",
+      },
+    });
+
+    let variant;
+    try {
+      const taskId = await createTextToImageTask({ prompt: prompt.trim() });
+      variant = await db.generationVariant.create({
+        data: { generationId: generation.id, youcamTaskId: taskId, youcamFeature: "text-to-image/youcam", status: "processing" },
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof YoucamApiError
+          ? friendlyYoucamError(err.errorCode)
+          : err instanceof Error
+            ? err.message
+            : "Failed to start backdrop generation.";
+      variant = await db.generationVariant.create({
+        data: { generationId: generation.id, youcamFeature: "text-to-image/youcam", status: "error", errorMessage },
+      });
+    }
+
+    await db.generation.update({
+      where: { id: generation.id },
+      data: { status: variant.status === "processing" ? "processing" : "error" },
+    });
+
+    return NextResponse.json({ generationId: generation.id, variants: [variant] }, { status: 201 });
+  }
+
+  // "effect" covers every single-photo skin/face/body/hair/accessory effect
+  // (see lib/youcam/effectDispatch.ts) — like image_to_video, it animates/
+  // transforms one uploaded photo directly, with no ReferenceModel diversity
+  // batch concept, so it's a short-circuit rather than threaded through the
+  // reference-model loop below.
+  if (flow === "effect") {
+    const effectId = form.get("effectId") as EffectId | null;
+    if (!effectId) {
+      return NextResponse.json({ error: "effectId is required for the effect flow." }, { status: 400 });
+    }
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "A source photo is required." }, { status: 400 });
+    }
+
+    let params: Record<string, unknown> = {};
+    const paramsRaw = form.get("params");
+    if (typeof paramsRaw === "string" && paramsRaw) {
+      try {
+        params = JSON.parse(paramsRaw);
+      } catch {
+        // Malformed params fall back to each effect's own defaults rather than failing the request.
+      }
+    }
+
+    const generation = await db.generation.create({
+      data: {
+        userId: session.user.id,
+        projectId: typeof projectId === "string" && projectId ? projectId : undefined,
+        flow,
+        status: "processing",
+      },
+    });
+
+    let variant;
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const uploaded = await uploadFile(buffer, {
+        contentType: file.type || "image/jpeg",
+        fileName: file.name || "upload.jpg",
+      });
+
+      let effectRefFileId: string | undefined;
+      const refFile = form.get("refFile");
+      if (refFile instanceof File) {
+        const refBuffer = Buffer.from(await refFile.arrayBuffer());
+        effectRefFileId = (
+          await uploadFile(refBuffer, { contentType: refFile.type || "image/jpeg", fileName: refFile.name || "ref.jpg" })
+        ).fileId;
+      }
+
+      const { taskId, feature } = await createEffectTask(effectId, { srcFileId: uploaded.fileId, refFileId: effectRefFileId }, params);
+      variant = await db.generationVariant.create({
+        data: { generationId: generation.id, youcamTaskId: taskId, youcamFeature: feature, status: "processing" },
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof YoucamApiError
+          ? friendlyYoucamError(err.errorCode)
+          : err instanceof Error
+            ? err.message
+            : "Failed to start generation.";
+      variant = await db.generationVariant.create({
+        data: { generationId: generation.id, youcamFeature: effectId, status: "error", errorMessage },
+      });
+    }
+
+    await db.generation.update({
+      where: { id: generation.id },
+      data: { status: variant.status === "processing" ? "processing" : "error" },
+    });
+
+    return NextResponse.json({ generationId: generation.id, variants: [variant] }, { status: 201 });
   }
 
   // image_to_video animates a single arbitrary source image — no
@@ -86,12 +223,18 @@ export async function POST(req: Request) {
         },
       });
     } catch (err) {
+      const errorMessage =
+        err instanceof YoucamApiError
+          ? friendlyYoucamError(err.errorCode)
+          : err instanceof Error
+            ? err.message
+            : "Failed to start video generation.";
       variant = await db.generationVariant.create({
         data: {
           generationId: generation.id,
           youcamFeature: "image-to-video",
           status: "error",
-          errorMessage: err instanceof Error ? err.message : "Failed to start video generation.",
+          errorMessage,
         },
       });
     }
@@ -234,7 +377,7 @@ export async function POST(req: Request) {
               generationId: generation.id,
               referenceModelId: model.id,
               youcamTaskId: taskId,
-              youcamFeature: "cloth-v3",
+              youcamFeature: "cloth-v4",
               status: "processing",
             },
             include: { referenceModel: true },
@@ -266,13 +409,15 @@ export async function POST(req: Request) {
             srcFileUrl,
             refFileId,
             refFileUrl,
+            ringFinger: ringFinger ?? undefined,
+            ringWearingLocation,
           });
           return db.generationVariant.create({
             data: {
               generationId: generation.id,
               referenceModelId: model.id,
               youcamTaskId: taskId,
-              youcamFeature: `${category}-vto`,
+              youcamFeature: JEWELRY_FEATURE_SLUGS[category],
               status: "processing",
             },
             include: { referenceModel: true },
@@ -296,14 +441,31 @@ export async function POST(req: Request) {
         });
       } catch (err) {
         const feature =
-          flow === "apparel_vto" ? "cloth-v3" : flow === "jewelry_vto" ? `${jewelryCategory as JewelryCategory}-vto` : "makeup-vto";
+          flow === "apparel_vto"
+            ? "cloth-v4"
+            : flow === "jewelry_vto"
+              ? JEWELRY_FEATURE_SLUGS[jewelryCategory as JewelryCategory]
+              : "makeup-vto";
+        // Upstream YouCam API errors carry a machine error code — route those through
+        // the friendly-message maps instead of leaking raw API text (e.g. a bad feature
+        // slug 404ing with `{"error": "This endpoint doesn't exist."}`) to the UI. Errors
+        // we raised ourselves (validation, upload failures) already have a sensible
+        // message and pass through unchanged.
+        const errorMessage =
+          err instanceof YoucamApiError
+            ? flow === "jewelry_vto"
+              ? friendlyJewelryError(err.errorCode, jewelryCategory as JewelryCategory)
+              : friendlyYoucamError(err.errorCode)
+            : err instanceof Error
+              ? err.message
+              : "Failed to start generation.";
         return db.generationVariant.create({
           data: {
             generationId: generation.id,
             referenceModelId: model.id,
             youcamFeature: feature,
             status: "error",
-            errorMessage: err instanceof Error ? err.message : "Failed to start generation.",
+            errorMessage,
           },
           include: { referenceModel: true },
         });

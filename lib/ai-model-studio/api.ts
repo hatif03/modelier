@@ -2,14 +2,21 @@
 // Supabase's DATABASE_URL went live. This is the one file components import;
 // the shape of GenerationView/GenerationVariantView never changed from the
 // mock, so no component above this needed to change.
-import { ApparelCategory, JewelryCategory, AIStudioFlow, GenerationView, GenerationVariantView } from "./types";
+import { ApparelCategory, JewelryCategory, RingFinger, AIStudioFlow, GenerationView, GenerationVariantView } from "./types";
+import { isDataFeatureSlug } from "./effects";
 
 export type StartGenerationInput = {
   file: File | null;
   flow: AIStudioFlow;
   garmentCategory?: ApparelCategory;
   jewelryCategory?: JewelryCategory;
+  ringFinger?: RingFinger;
+  ringWearingLocation?: number;
   shadeHex?: string;
+  /** Required when flow is "effect" — see lib/ai-model-studio/effects.ts. */
+  effectId?: string;
+  effectParams?: Record<string, unknown>;
+  refFile?: File | null;
   referenceModelIds: string[];
   prompt?: string;
   resolution?: "480" | "720" | "1080";
@@ -25,6 +32,8 @@ function toVariantView(v: any): GenerationVariantView {
     status: v.status,
     resultImageUrl: v.resultImageUrl ?? undefined,
     isVideo: v.youcamFeature === "image-to-video",
+    isAnalysis: isDataFeatureSlug(v.youcamFeature),
+    analysisResult: v.analysisResult ?? undefined,
     errorMessage: v.errorMessage ?? undefined,
     colorHarmonyScore: v.colorHarmonyScore ?? undefined,
     colorHarmonyNote: v.colorHarmonyNote ?? undefined,
@@ -38,6 +47,7 @@ function toGenerationView(g: any): GenerationView {
     status: g.status,
     errorMessage: g.errorMessage ?? undefined,
     variants: (g.variants ?? []).map(toVariantView),
+    garmentColorHex: g.garmentColorHex ?? undefined,
   };
 }
 
@@ -47,6 +57,11 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
   form.set("flow", input.flow);
   if (input.garmentCategory) form.set("garmentCategory", input.garmentCategory);
   if (input.jewelryCategory) form.set("jewelryCategory", input.jewelryCategory);
+  if (input.ringFinger) form.set("ringFinger", input.ringFinger);
+  if (input.ringWearingLocation !== undefined) form.set("ringWearingLocation", String(input.ringWearingLocation));
+  if (input.effectId) form.set("effectId", input.effectId);
+  if (input.effectParams) form.set("params", JSON.stringify(input.effectParams));
+  if (input.refFile) form.set("refFile", input.refFile);
   if (input.shadeHex) form.set("shadeHex", input.shadeHex);
   if (input.prompt) form.set("prompt", input.prompt);
   if (input.resolution) form.set("resolution", input.resolution);

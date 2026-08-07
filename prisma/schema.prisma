@@ -128,9 +128,14 @@ model GenerationVariant {
   // (a canvas selection or a fresh upload), not a curated ReferenceModel.
   referenceModelId  String?
   youcamTaskId      String?
-  youcamFeature     String // "cloth-v3" | "makeup-vto" | "image-to-video" | "ring-vto" | "necklace-vto" | "earring-vto" | "bracelet-vto" | "watch-vto"
+  youcamFeature     String // e.g. "cloth-v4" | "makeup-vto" | "image-to-video" | "2d-vto/{ring|necklace|earring|bracelet|watch}" | "skin-analysis" | "face-attr-analysis" | "body-reshape" | ...
   status            String // "pending" | "processing" | "success" | "error"
   resultImageUrl    String? // holds a video URL for the image_to_video flow
+  // Data-output effects (skin analysis, face analyzer, Fitzpatrick skin type)
+  // return scores/metrics instead of a rendered image — kept separate from
+  // resultImageUrl, which always stays image-only, so the UI can tell which
+  // result renderer (photo grid vs score card) a variant needs.
+  analysisResult    Json?
   errorMessage      String?
   colorHarmonyScore Int?
   colorHarmonyNote  String?
