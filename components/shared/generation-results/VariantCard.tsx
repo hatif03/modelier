@@ -4,6 +4,7 @@ import Image from "next/image";
 
 import { GenerationVariantView } from "@/lib/ai-model-studio/types";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 type Props = {
   variant: GenerationVariantView;
@@ -50,7 +51,14 @@ const VariantCard = ({ variant, onAddToCanvas, onDropIntoPlaceholder }: Props) =
         )}
       </div>
       <div className="flex flex-col gap-1.5 p-2">
-        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{variant.referenceModelLabel}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{variant.referenceModelLabel}</p>
+          {typeof variant.colorHarmonyScore === "number" && (
+            <Badge variant={variant.colorHarmonyScore >= 80 ? "success" : variant.colorHarmonyScore >= 60 ? "secondary" : "outline"}>
+              {Math.round(variant.colorHarmonyScore)}% match
+            </Badge>
+          )}
+        </div>
         {variant.colorHarmonyNote && (
           <p className="font-serif text-xs italic text-foreground">{variant.colorHarmonyNote}</p>
         )}

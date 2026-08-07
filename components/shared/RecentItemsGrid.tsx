@@ -95,7 +95,7 @@ function RecentItemsGrid<T extends RecentItem>({
             <div
               key={item.id}
               onClick={() => router.push(itemHref(item))}
-              className="group relative flex cursor-pointer flex-col overflow-hidden rounded-sm border border-border bg-card aspect-square hover:border-accent/60"
+              className="hover-lift group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-card aspect-square hover:border-accent/60"
             >
               <div className="absolute right-2 top-2 z-10 hidden items-center gap-2 group-hover:flex">
                 {renderHoverAction?.(item)}
