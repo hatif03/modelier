@@ -5,9 +5,10 @@ type Props = {
   onGenerateBatch?: () => void;
   disabled: boolean;
   isGenerating: boolean;
+  batchLabel?: string;
 };
 
-const GenerateActions = ({ onGenerate, onGenerateBatch, disabled, isGenerating }: Props) => (
+const GenerateActions = ({ onGenerate, onGenerateBatch, disabled, isGenerating, batchLabel = "Generate diverse batch" }: Props) => (
   <div className="flex flex-col gap-2 px-5 py-3">
     <Button disabled={disabled || isGenerating} onClick={onGenerate} className="w-full">
       {isGenerating ? "Generating…" : "Generate"}
@@ -19,7 +20,7 @@ const GenerateActions = ({ onGenerate, onGenerateBatch, disabled, isGenerating }
         variant="outline"
         className="w-full border-border bg-background hover:border-accent hover:bg-background hover:text-accent"
       >
-        Generate diverse batch
+        {batchLabel}
       </Button>
     )}
   </div>

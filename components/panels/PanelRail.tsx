@@ -1,14 +1,15 @@
 "use client";
 
-import { Sparkles, LayoutTemplate, Palette, Upload, Layers as LayersIcon, type LucideIcon } from "lucide-react";
+import { Sparkles, LayoutTemplate, Palette, Upload, Layers as LayersIcon, MessageCircle, type LucideIcon } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export type PanelTabId = "ai-studio" | "templates" | "brand-kit" | "uploads" | "layers";
+export type PanelTabId = "ai-studio" | "assistant" | "templates" | "brand-kit" | "uploads" | "layers";
 
 const RAIL_ITEMS: { id: PanelTabId; label: string; icon: LucideIcon }[] = [
   { id: "ai-studio", label: "AI Model", icon: Sparkles },
+  { id: "assistant", label: "Style Assistant", icon: MessageCircle },
   { id: "templates", label: "Templates", icon: LayoutTemplate },
   { id: "brand-kit", label: "Brand Kit", icon: Palette },
   { id: "uploads", label: "Uploads", icon: Upload },

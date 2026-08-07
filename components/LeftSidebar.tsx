@@ -7,6 +7,7 @@ import PanelShell from "./panels/PanelShell";
 import PanelRail, { PanelTabId } from "./panels/PanelRail";
 import LayersPanel from "./panels/LayersPanel";
 import AIModelStudioPanel from "./panels/ai-model-studio/AIModelStudioPanel";
+import StyleAssistantPanel from "./panels/ai-model-studio/StyleAssistantPanel";
 import TemplateGalleryPanel from "./panels/templates/TemplateGalleryPanel";
 import BrandKitPanel from "./panels/brand-kit/BrandKitPanel";
 import UploadsPanel from "./panels/uploads/UploadsPanel";
@@ -74,6 +75,14 @@ const LeftSidebar = ({
               syncShapeInStorage={syncShapeInStorage}
               deleteShapeFromStorage={deleteShapeFromStorage}
               allShapes={allShapes}
+            />
+          )}
+          {activeTab === "assistant" && (
+            <StyleAssistantPanel
+              fabricRef={fabricRef}
+              activeObjectRef={activeObjectRef}
+              shapeRef={shapeRef}
+              syncShapeInStorage={syncShapeInStorage}
             />
           )}
           {activeTab === "templates" && (
