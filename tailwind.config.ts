@@ -70,6 +70,7 @@ const config = {
         serif: ["var(--font-serif)", "ui-serif", "Georgia", "serif"],
       },
       borderRadius: {
+        xl: "var(--radius-xl)",
         lg: "var(--radius-lg)",
         md: "var(--radius)",
         sm: "var(--radius-sm)",
