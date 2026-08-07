@@ -48,6 +48,18 @@ const config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -58,9 +70,18 @@ const config = {
         serif: ["var(--font-serif)", "ui-serif", "Georgia", "serif"],
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "var(--radius-lg)",
+        md: "var(--radius)",
+        sm: "var(--radius-sm)",
+        pill: "var(--radius-pill)",
+      },
+      boxShadow: {
+        panel: "var(--shadow-panel)",
+        popover: "var(--shadow-popover)",
+        modal: "var(--shadow-modal)",
+      },
+      backgroundImage: {
+        "gradient-brand": "var(--gradient-brand)",
       },
       keyframes: {
         "accordion-down": {

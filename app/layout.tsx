@@ -3,6 +3,7 @@ import { SessionProvider } from "next-auth/react";
 
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata = {
   title: "Modelier",
@@ -28,6 +29,7 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => (
     <body className={`${workSans.variable} ${fraunces.variable} font-sans bg-background text-foreground`}>
       <SessionProvider>
         <TooltipProvider>{children}</TooltipProvider>
+        <Toaster />
       </SessionProvider>
     </body>
   </html>

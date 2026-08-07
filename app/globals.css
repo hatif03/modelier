@@ -5,26 +5,71 @@
 @import "@liveblocks/react-comments/styles.css";
 
 :root {
-  --background: 37 45% 94%;
-  --foreground: 22 14% 11%;
-  --card: 35 38% 91%;
-  --card-foreground: 22 14% 11%;
-  --popover: 35 38% 91%;
-  --popover-foreground: 22 14% 11%;
-  --primary: 22 14% 11%;
-  --primary-foreground: 37 45% 94%;
-  --secondary: 35 27% 84%;
-  --secondary-foreground: 22 14% 11%;
-  --muted: 35 27% 88%;
-  --muted-foreground: 22 6% 34%;
-  --accent: 15 46% 54%;
-  --accent-foreground: 37 45% 94%;
-  --destructive: 9 57% 39%;
-  --destructive-foreground: 37 45% 94%;
-  --border: 35 27% 84%;
-  --input: 35 27% 84%;
-  --ring: 15 46% 54%;
-  --radius: 0.375rem;
+  --background: 330 20% 98%;
+  --foreground: 270 9% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 270 9% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 270 9% 4%;
+  --primary: 337 100% 59%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 334 100% 92%;
+  --secondary-foreground: 270 9% 4%;
+  --muted: 330 15% 95%;
+  --muted-foreground: 330 8% 42%;
+  --accent: 334 100% 78%;
+  --accent-foreground: 270 9% 4%;
+  --destructive: 356 90% 54%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 55% 36%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 270 9% 4%;
+  --info: 217 91% 60%;
+  --info-foreground: 0 0% 100%;
+  --border: 330 15% 89%;
+  --input: 330 15% 89%;
+  --ring: 337 100% 59%;
+  --radius: 0.75rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: 1rem;
+  --radius-pill: 9999px;
+  --gradient-brand: linear-gradient(135deg, #ff2e7e 0%, #170014 100%);
+  --shadow-panel: 0 1px 2px 0 hsl(270 9% 4% / 0.05), 0 2px 6px -1px hsl(270 9% 4% / 0.06);
+  --shadow-popover: 0 8px 24px -4px hsl(270 9% 4% / 0.16), 0 2px 6px -2px hsl(270 9% 4% / 0.08);
+  --shadow-modal: 0 24px 48px -12px hsl(270 9% 4% / 0.28);
+}
+
+.dark {
+  --background: 270 12% 6%;
+  --foreground: 330 25% 96%;
+  --card: 270 10% 10%;
+  --card-foreground: 330 25% 96%;
+  --popover: 270 10% 11%;
+  --popover-foreground: 330 25% 96%;
+  --primary: 337 100% 63%;
+  --primary-foreground: 270 9% 4%;
+  --secondary: 330 20% 18%;
+  --secondary-foreground: 330 25% 96%;
+  --muted: 270 8% 14%;
+  --muted-foreground: 330 10% 65%;
+  --accent: 334 90% 68%;
+  --accent-foreground: 270 9% 4%;
+  --destructive: 356 85% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 152 50% 48%;
+  --success-foreground: 270 9% 4%;
+  --warning: 38 88% 58%;
+  --warning-foreground: 270 9% 4%;
+  --info: 217 85% 68%;
+  --info-foreground: 270 9% 4%;
+  --border: 270 8% 18%;
+  --input: 270 8% 18%;
+  --ring: 337 100% 63%;
+  --gradient-brand: linear-gradient(135deg, #ff2e7e 0%, #000000 100%);
+  --shadow-panel: 0 1px 2px 0 hsl(0 0% 0% / 0.3), 0 1px 3px 0 hsl(0 0% 0% / 0.3);
+  --shadow-popover: 0 8px 24px -4px hsl(0 0% 0% / 0.45), 0 2px 6px -2px hsl(0 0% 0% / 0.3);
+  --shadow-modal: 0 24px 48px -12px hsl(0 0% 0% / 0.6);
 }
 
 @layer base {
@@ -34,6 +79,25 @@
 }
 
 @layer utilities {
+  .bg-gradient-brand {
+    background: var(--gradient-brand);
+  }
+
+  .text-gradient-brand {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .shadow-modal {
+    box-shadow: var(--shadow-modal);
+  }
+
+  .hover-lift {
+    @apply transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-0.5 hover:shadow-popover !important;
+  }
+
   .no-ring {
     @apply outline-none ring-0 ring-offset-0 focus:ring-0 focus:ring-offset-0 focus-visible:ring-offset-0 !important;
   }
