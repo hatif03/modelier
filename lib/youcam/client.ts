@@ -23,7 +23,31 @@ export class YoucamApiError extends Error {
   }
 }
 
+// PerfectCorp enforces 250 requests / 300s, both per-IP and per-token. A
+// simple in-process token bucket is enough at our traffic level — no need
+// for a distributed limiter. Requests over the limit wait instead of firing
+// and immediately hitting a 429.
+const RATE_LIMIT_MAX = 250;
+const RATE_LIMIT_WINDOW_MS = 300_000;
+const requestTimestamps: number[] = [];
+
+async function waitForRateLimitSlot(): Promise<void> {
+  const now = Date.now();
+  while (requestTimestamps.length && now - requestTimestamps[0] > RATE_LIMIT_WINDOW_MS) {
+    requestTimestamps.shift();
+  }
+  if (requestTimestamps.length < RATE_LIMIT_MAX) {
+    requestTimestamps.push(now);
+    return;
+  }
+  const waitMs = RATE_LIMIT_WINDOW_MS - (now - requestTimestamps[0]) + 50;
+  await new Promise((resolve) => setTimeout(resolve, waitMs));
+  return waitForRateLimitSlot();
+}
+
 async function youcamFetch(path: string, init?: RequestInit) {
+  await waitForRateLimitSlot();
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -41,6 +65,26 @@ async function youcamFetch(path: string, init?: RequestInit) {
   }
 
   return json;
+}
+
+// Shared by every new v2+ feature wrapper (skin.ts, face.ts, body.ts, hair.ts,
+// ...) — every one of them takes a source photo as either an already-uploaded
+// file_id or a public URL, the same two-way choice clothesVto.ts/jewelryVto.ts
+// already hand-roll individually. Collapsing it here avoids repeating the same
+// four lines in ~15 near-identical functions.
+export type SrcFileInput = { srcFileId?: string; srcFileUrl?: string };
+export type RefFileInput = { refFileId?: string; refFileUrl?: string };
+
+export function withSrcFile(payload: Record<string, unknown>, input: SrcFileInput, fnName: string): void {
+  if (input.srcFileId) payload.src_file_id = input.srcFileId;
+  else if (input.srcFileUrl) payload.src_file_url = input.srcFileUrl;
+  else throw new Error(`${fnName} requires either srcFileId or srcFileUrl`);
+}
+
+export function withRefFile(payload: Record<string, unknown>, input: RefFileInput, fnName: string): void {
+  if (input.refFileId) payload.ref_file_id = input.refFileId;
+  else if (input.refFileUrl) payload.ref_file_url = input.refFileUrl;
+  else throw new Error(`${fnName} requires either refFileId or refFileUrl`);
 }
 
 export type UploadedFile = { fileId: string };
@@ -82,6 +126,16 @@ export async function createTask(feature: string, payload: Record<string, unknow
     body: JSON.stringify(payload),
   });
   return json.data.task_id;
+}
+
+// GET /s2s/v2.0/task/template/{feature} — a handful of features (hairstyle,
+// hair extension/volume/bangs/wavy, beard style, fabric) ship a curated
+// template list instead of requiring a user-supplied reference photo.
+export async function listTemplates<TTemplate = { id: string; label?: string; thumbnailUrl?: string }>(
+  feature: string
+): Promise<TTemplate[]> {
+  const json = await youcamFetch(`/s2s/v2.0/task/template/${feature}`, { method: "GET" });
+  return json.data?.templates ?? [];
 }
 
 export type TaskStatus<TResults = unknown> = {
@@ -127,4 +181,29 @@ export async function pollTaskUntilDone<TResults = unknown>(
     }
     await new Promise((resolve) => setTimeout(resolve, interval));
   }
+}
+
+// Several effects (face-lift, face-reshape, face-swap, teeth-whiten,
+// body-reshape, fitzpatrick-scale-analyzer) require a "pre-process" detection
+// task to run first, whose result (face/body boxes) feeds the parameters of
+// the real task. Pre-process is lightweight detection, not full inference, so
+// unlike the main task it's safe to block on synchronously inside the
+// `/api/generations` POST handler — it's expected to resolve within a couple
+// of polls. The main task submitted after it still follows the app's normal
+// non-blocking submit-then-poll pattern.
+export async function createTaskWithPreprocess<TPrepResults = unknown>(
+  feature: string,
+  prepPayload: Record<string, unknown>,
+  mapPrepResultToMainPayload: (prepResults: TPrepResults) => Record<string, unknown>,
+  opts: { intervalMs?: number; timeoutMs?: number } = {}
+): Promise<string> {
+  const prepTaskId = await createTask(`${feature}/pre-process`, prepPayload);
+  const prepStatus = await pollTaskUntilDone<TPrepResults>(`${feature}/pre-process`, prepTaskId, opts);
+
+  if (prepStatus.status === "error") {
+    throw new YoucamApiError(prepStatus.errorMessage ?? "Pre-process step failed.", prepStatus.error, 502, prepStatus);
+  }
+
+  const mainPayload = mapPrepResultToMainPayload(prepStatus.results as TPrepResults);
+  return createTask(feature, mainPayload);
 }

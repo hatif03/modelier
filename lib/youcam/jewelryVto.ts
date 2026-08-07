@@ -1,26 +1,36 @@
 // AI Ring / Necklace / Earrings / Bracelet / Watch Virtual Try-On.
 //
-// UNCONFIRMED SCHEMA — unlike clothesVto.ts/makeupVto.ts, these five feature slugs and
-// payload shapes have NOT been checked against the live docs.perfectcorp.com reference
-// pages or the API Playground (that reference is a JS-rendered SPA that couldn't be
-// scraped during planning). Perfect Corp's public marketing pages confirm each API
-// takes a person photo (src) showing the relevant body part and a 2D product photo of
-// the jewelry item on a clear background (ref) — the same src/ref shape clothesVto.ts
-// already uses — so that much is a reasonable bet. Everything else (the exact feature
-// slug string, category-specific fields like a necklace anchor point or lighting
-// config, and the response/error shape) is a placeholder. Confirm against the live API
-// before shipping, and update only the affected function if one category's real schema
-// differs — that's the point of keeping these five isolated instead of one shared call.
+// Confirmed against the live docs.perfectcorp.com reference pages (via the
+// `.md`-suffix trick — these are JS-rendered SPA pages that return only a
+// title without it). Unlike every other YouCam feature, jewelry VTO nests
+// under `2d-vto/{category}` rather than a flat `{category}-vto` slug:
+//   POST/GET /s2s/v2.0/task/2d-vto/{ring|necklace|earring|bracelet|watch}
+// `createTask`/`getTaskStatus` just interpolate the feature string into the
+// URL, so passing the nested segment through as one string is enough — no
+// separate "path shape" concept needed in client.ts.
 import { createTask, getTaskStatus } from "./client";
 
 export type JewelryCategory = "ring" | "necklace" | "earring" | "bracelet" | "watch";
 
 export const JEWELRY_FEATURE_SLUGS: Record<JewelryCategory, string> = {
-  ring: "ring-vto",
-  necklace: "necklace-vto",
-  earring: "earring-vto",
-  bracelet: "bracelet-vto",
-  watch: "watch-vto",
+  ring: "2d-vto/ring",
+  necklace: "2d-vto/necklace",
+  earring: "2d-vto/earring",
+  bracelet: "2d-vto/bracelet",
+  watch: "2d-vto/watch",
+};
+
+export type RingFinger = "thumb" | "index" | "middle" | "ring" | "pinky";
+
+// API indexes fingers 0-4 (thumb..pinky) — the only jewelry category where
+// placement is a required parameter, not an optional tuning knob, since it
+// determines which finger the ring renders on.
+const RING_FINGER_INDEX: Record<RingFinger, number> = {
+  thumb: 0,
+  index: 1,
+  middle: 2,
+  ring: 3,
+  pinky: 4,
 };
 
 export type JewelryVtoInput = {
@@ -28,6 +38,9 @@ export type JewelryVtoInput = {
   srcFileUrl?: string;
   refFileId?: string;
   refFileUrl?: string;
+  // Required for the ring category only; ignored otherwise.
+  ringFinger?: RingFinger;
+  ringWearingLocation?: number;
 };
 
 export type JewelryVtoResult = { url: string };
@@ -46,8 +59,16 @@ function buildPayload(input: JewelryVtoInput): Record<string, unknown> {
   return payload;
 }
 
+function buildRingPayload(input: JewelryVtoInput): Record<string, unknown> {
+  return {
+    ...buildPayload(input),
+    ring_wearing_finger: RING_FINGER_INDEX[input.ringFinger ?? "ring"],
+    ring_wearing_location: input.ringWearingLocation ?? 0.5,
+  };
+}
+
 export async function createRingVtoTask(input: JewelryVtoInput): Promise<string> {
-  return createTask(JEWELRY_FEATURE_SLUGS.ring, buildPayload(input));
+  return createTask(JEWELRY_FEATURE_SLUGS.ring, buildRingPayload(input));
 }
 
 export async function getRingVtoStatus(taskId: string) {

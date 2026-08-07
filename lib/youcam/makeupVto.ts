@@ -48,6 +48,35 @@ export async function getMakeupVtoStatus(taskId: string) {
   return getTaskStatus<MakeupVtoResult>("makeup-vto", taskId);
 }
 
+// ---- Makeup transfer — applies a reference look's makeup onto the user's
+// face. Schema confirmed against https://docs.perfectcorp.com/reference/ai_makeup_transfer.
+export type MakeupTransferInput = {
+  srcFileId?: string;
+  srcFileUrl?: string;
+  refFileId?: string;
+  refFileUrl?: string;
+};
+
+export async function createMakeupTransferTask(input: MakeupTransferInput): Promise<string> {
+  const payload: Record<string, unknown> = {};
+
+  if (input.srcFileId) payload.src_file_id = input.srcFileId;
+  else if (input.srcFileUrl) payload.src_file_url = input.srcFileUrl;
+  else throw new Error("createMakeupTransferTask requires either srcFileId or srcFileUrl");
+
+  if (input.refFileId) payload.ref_file_id = input.refFileId;
+  else if (input.refFileUrl) payload.ref_file_url = input.refFileUrl;
+  else throw new Error("createMakeupTransferTask requires either refFileId or refFileUrl");
+
+  return createTask("mu-transfer", payload);
+}
+
+export type MakeupTransferResult = { url: string };
+
+export async function getMakeupTransferStatus(taskId: string) {
+  return getTaskStatus<MakeupTransferResult>("mu-transfer", taskId);
+}
+
 // A single lip-color effect from just a hex shade — the PRD's "select a
 // shade" beauty flow, no per-property makeup UI needed. "original" as the lip
 // shape name is an unmodified-shape default; confirm against the live API

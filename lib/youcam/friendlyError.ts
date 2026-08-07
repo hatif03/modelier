@@ -18,6 +18,15 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   error_no_face: "We couldn't detect a clear face in that photo. Please use one with the face clearly visible.",
   error_face_angle_downward: "The face angle in that photo is too steep. Please use a more front-facing photo.",
   unknown_internal_error: "Something went wrong generating this render. Please try again.",
+  // Older-generation effects (jewelry, face-lift, face-reshape, face-swap, body-reshape,
+  // teeth-whiten, fitzpatrick) use this PHOTO_*/RUNTIME_ERROR-style vocabulary instead of
+  // the newer error_*/invalid_parameter codes above — kept in the same shared map since
+  // the user-facing text ends up equivalent either way.
+  PHOTO_DETECTION_FAIL: "We couldn't detect the right part of the body in that photo. Please try a clearer, well-lit photo.",
+  OBJECT_DETECTION_FAIL: "We couldn't detect the item in that reference photo. Please try a clearer photo of it.",
+  RUNTIME_ERROR: "Something went wrong generating this render. Please try again.",
+  error_multiple_faces: "We found more than one face in that photo. Please use a photo with a single person.",
+  error_no_body: "We couldn't detect a clear body in that photo. Please use one with the full body visible.",
 };
 
 export function friendlyYoucamError(rawError: string | null | undefined): string {
