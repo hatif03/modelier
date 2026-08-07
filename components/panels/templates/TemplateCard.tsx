@@ -19,7 +19,7 @@ const TemplateCard = ({ template, onUse }: Props) => {
   const isSwatchColor = template.thumbnailUrl.startsWith("#");
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-sm border border-border">
+    <div className="hover-lift flex flex-col overflow-hidden rounded-lg border border-border bg-card">
       <div
         className="relative flex aspect-square w-full items-center justify-center"
         style={isSwatchColor ? { backgroundColor: template.thumbnailUrl } : undefined}
@@ -27,7 +27,7 @@ const TemplateCard = ({ template, onUse }: Props) => {
         {!isSwatchColor && (
           <Image src={template.thumbnailUrl} alt={template.name} fill unoptimized className="object-cover" />
         )}
-        <div className="h-2/3 w-2/3 rounded-sm border border-dashed border-accent" />
+        <div className="h-2/3 w-2/3 rounded-md border border-dashed border-accent" />
       </div>
       <div className="flex flex-col gap-2 p-2">
         <p className="font-serif text-sm text-foreground">{template.name}</p>

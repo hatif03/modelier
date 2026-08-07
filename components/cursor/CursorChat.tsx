@@ -37,14 +37,11 @@ const CursorChat = ({ cursor, cursorState, setCursorState, updateMyPresence }: C
       {cursorState.mode === CursorMode.Chat && (
         <>
           {/* Custom Cursor shape */}
-          <CursorSVG color="#000" />
+          <CursorSVG color="#FF2E7E" />
 
           <div
-            className="absolute left-2 top-5 bg-blue-500 px-4 py-2 text-sm leading-relaxed text-white"
+            className="absolute left-2 top-5 rounded-pill bg-primary px-4 py-2 text-sm leading-relaxed text-primary-foreground"
             onKeyUp={(e) => e.stopPropagation()}
-            style={{
-              borderRadius: 20,
-            }}
           >
             {/**
              * if there is a previous message, show it above the input
@@ -54,7 +51,7 @@ const CursorChat = ({ cursor, cursorState, setCursorState, updateMyPresence }: C
              */}
             {cursorState.previousMessage && <div>{cursorState.previousMessage}</div>}
             <input
-              className="z-10 w-60 border-none	bg-transparent text-white placeholder-blue-300 outline-none"
+              className="z-10 w-60 border-none	bg-transparent text-primary-foreground placeholder-primary-foreground/60 outline-none"
               autoFocus={true}
               onChange={handleChange}
               onKeyDown={handleKeyDown}

@@ -43,7 +43,7 @@ const QuickCreateTiles = ({ query, customSizeOpen, onCustomSizeOpenChange }: Pro
               key={format.id}
               disabled={isCreating}
               onClick={() => createProject({ format: format.id })}
-              className="flex flex-col items-center gap-2 rounded-sm border border-border bg-card p-4 text-center hover:border-accent/60 disabled:opacity-50"
+              className="hover-lift flex flex-col items-center gap-2 rounded-lg border border-border bg-card p-4 text-center hover:border-accent/60 disabled:opacity-50"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <Icon className="h-5 w-5" />
@@ -57,7 +57,7 @@ const QuickCreateTiles = ({ query, customSizeOpen, onCustomSizeOpenChange }: Pro
         {showCustom && (
           <button
             onClick={() => onCustomSizeOpenChange(true)}
-            className="flex flex-col items-center gap-2 rounded-sm border border-dashed border-border bg-card p-4 text-center hover:border-accent/60"
+            className="hover-lift flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-card p-4 text-center hover:border-accent/60"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-accent">
               <Plus className="h-5 w-5" />

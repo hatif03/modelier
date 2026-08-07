@@ -10,7 +10,7 @@ type Props = {
 // A small, fixed palette in the app's own editorial tones — never a random
 // stock photo of a stranger (the old behavior: a fresh
 // liveblocks.io/avatars/avatar-N.png reassigned on every render).
-const PALETTE = ["#BF6E52", "#7C6A58", "#5B7065", "#8A6D3B", "#6B5B73", "#4F6B72"];
+const PALETTE = ["#FF2E7E", "#170014", "#FF8FC0", "#6B1740", "#0B0A0C", "#D6316E"];
 
 function colorForName(name: string) {
   let hash = 0;
@@ -29,7 +29,7 @@ const Avatar = ({ name, otherStyles }: Props) => (
   <Tooltip>
     <TooltipTrigger>
       <div
-        className={`relative flex h-9 w-9 items-center justify-center rounded-full font-serif text-xs text-background ${otherStyles}`}
+        className={`relative flex h-9 w-9 items-center justify-center rounded-full font-serif text-xs text-white ${otherStyles}`}
         style={{ backgroundColor: colorForName(name) }}
         data-tooltip={name}
       >

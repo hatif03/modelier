@@ -20,7 +20,7 @@ export async function GET() {
       data: {
         userId: session.user.id,
         name: "My Brand Kit",
-        colors: { primary: "#211C19", accent: "#BF6E52", background: "#F7F2EA", text: "#211C19" },
+        colors: { primary: "#0B0A0C", accent: "#FF2E7E", background: "#FFFFFF", text: "#0B0A0C" },
         fontDisplay: "Fraunces",
         fontBody: "Work Sans",
         isDefault: true,

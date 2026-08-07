@@ -22,6 +22,7 @@ import {
 import { handleDelete, handleKeyDown } from "@/lib/key-events";
 import { LeftSidebar, Live, Navbar, RightSidebar } from "@/components/index";
 import { handleImageUpload } from "@/lib/shapes";
+import { loadTemplateOntoCanvas } from "@/lib/templates";
 import { defaultNavElement } from "@/constants";
 import { ActiveElement, Attributes } from "@/types/type";
 
@@ -522,6 +523,27 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
     });
   }, [canvasObjects]);
 
+  // Picks up a Magic Resize handoff (components/settings/MagicResize.tsx) —
+  // that action creates this project via a plain POST /api/projects (which
+  // starts with an empty Liveblocks room, same as any other new design) and
+  // stashes the already-scaled canvas JSON in sessionStorage rather than
+  // writing into a room it isn't connected to. Only ever hydrates a room
+  // that's genuinely still empty — never overwrites real collaborative
+  // content — and only once, since the stash is removed immediately after.
+  useEffect(() => {
+    if (!projectId || !canvasObjects || canvasObjects.size > 0) return;
+    const stashKey = `magic-resize:${projectId}`;
+    const raw = sessionStorage.getItem(stashKey);
+    if (!raw) return;
+    sessionStorage.removeItem(stashKey);
+    try {
+      const shapes = JSON.parse(raw) as Record<string, unknown>[];
+      loadTemplateOntoCanvas({ canvasJson: shapes, canvas: fabricRef, deleteAllShapes, syncShapeInStorage });
+    } catch (err) {
+      console.error("Failed to hydrate the resized canvas from a Magic Resize handoff", err);
+    }
+  }, [projectId, canvasObjects, fabricRef, deleteAllShapes, syncShapeInStorage]);
+
   // Capture a small preview a few seconds after each edit settles, so the
   // Dashboard can show a real snapshot of the design (Canva-style) instead
   // of a blank tile. Both failure modes used to fail completely silently
@@ -563,7 +585,7 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
   }, [canvasObjects, projectId]);
 
   return (
-    <main className='h-screen overflow-hidden'>
+    <main className='flex h-screen flex-col overflow-hidden'>
       <Navbar
         imageInputRef={imageInputRef}
         activeElement={activeElement}
@@ -583,7 +605,7 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
         handleActiveElement={handleActiveElement}
       />
 
-      <section className='flex h-full flex-row'>
+      <section className='flex flex-1 flex-row overflow-hidden'>
         <LeftSidebar
           allShapes={Array.from(canvasObjects)}
           fabricRef={fabricRef}
@@ -611,6 +633,8 @@ const Home = ({ width, height, projectId, initialName }: Props) => {
           isEditingRef={isEditingRef}
           activeObjectRef={activeObjectRef}
           syncShapeInStorage={syncShapeInStorage}
+          projectId={projectId}
+          initialName={initialName}
         />
       </section>
     </main>

@@ -13,7 +13,7 @@ type Props = {
   syncShapeInStorage: (shape: fabric.Object) => void;
 };
 
-const ICON_FILL = "#211C19";
+const ICON_FILL = "#0B0A0C";
 
 type LibraryItem = { id: string; url: string; label: string };
 

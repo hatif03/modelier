@@ -244,7 +244,10 @@ const Live = ({ canvasRef, undo, redo, zoom, onZoomIn, onZoomOut, onZoomReset }:
             so the page itself visibly grows/shrinks on screen like Canva,
             staying whole and centered, rather than clipping content inside a
             fixed-size box. */}
-        <div className="shadow-lg transition-transform" style={{ transform: `scale(${zoom})` }}>
+        <div
+          className="border border-foreground/15 shadow-lg transition-transform"
+          style={{ transform: `scale(${zoom})` }}
+        >
           <canvas ref={canvasRef} />
         </div>
 

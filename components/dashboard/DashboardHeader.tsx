@@ -29,7 +29,7 @@ const DashboardHeader = ({ query, onQueryChange, onCreateDesign }: Props) => (
         <Link href="/jewelry" className="text-xs uppercase tracking-widest text-muted-foreground hover:text-accent">
           Jewelry Studio
         </Link>
-        <Button size="sm" onClick={onCreateDesign}>
+        <Button size="sm" variant="gradient" onClick={onCreateDesign}>
           <Plus className="mr-1.5 h-4 w-4" />
           Create design
         </Button>
