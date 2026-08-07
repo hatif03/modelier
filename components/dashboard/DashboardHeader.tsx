@@ -1,41 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { Plus } from "lucide-react";
-
 import { AppHeader } from "@/components/shell/AppHeader";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import UserMenu from "./UserMenu";
 
-type Props = {
-  query: string;
-  onQueryChange: (query: string) => void;
-  onCreateDesign: () => void;
-};
-
-const DashboardHeader = ({ query, onQueryChange, onCreateDesign }: Props) => (
-  <AppHeader
-    breadcrumb={[{ label: "Modelier", href: "/" }]}
-    search={
-      <Input
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        placeholder="Search formats or your designs"
-        className="input-ring max-w-xs border border-border bg-background"
-      />
-    }
-    actions={
-      <>
-        <Link href="/jewelry" className="text-xs uppercase tracking-widest text-muted-foreground hover:text-accent">
-          Jewelry Studio
-        </Link>
-        <Button size="sm" variant="gradient" onClick={onCreateDesign}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Create design
-        </Button>
-      </>
-    }
-  />
+// Just the wordmark + account menu — search moved into the hero section
+// (Dashboard.tsx), and "Create design"/the Jewelry Studio link already moved
+// into the body in an earlier pass. The header stays pure navigation chrome.
+const DashboardHeader = () => (
+  <AppHeader className="text-glow" breadcrumb={[{ label: "Modelier", href: "/" }]} actions={<UserMenu />} />
 );
 
 export default DashboardHeader;

@@ -14,7 +14,7 @@ export async function GET() {
   const projects = await db.project.findMany({
     where: { userId: session.user.id },
     orderBy: { updatedAt: "desc" },
-    select: { id: true, name: true, format: true, width: true, height: true, thumbnailUrl: true, updatedAt: true },
+    select: { id: true, name: true, format: true, width: true, height: true, thumbnailUrl: true, updatedAt: true, createdAt: true },
   });
 
   return NextResponse.json({ projects });
