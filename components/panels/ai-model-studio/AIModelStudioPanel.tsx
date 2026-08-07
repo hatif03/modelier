@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { fabric } from "fabric";
 
 import Dropzone from "@/components/ui/dropzone";
@@ -48,8 +49,18 @@ type Props = {
   allShapes: Array<any>;
 };
 
+const VALID_FLOWS: AIStudioFlow[] = ["apparel_vto", "makeup_vto", "jewelry_vto", "image_to_video", "effect", "backdrop"];
+
 const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteShapeFromStorage, allShapes }: Props) => {
-  const [flow, setFlow] = useState<AIStudioFlow>("apparel_vto");
+  // Lets a dashboard entry point like "Edit a video" (CreateDesignModal.tsx)
+  // land the user directly in a specific flow via `?flow=` instead of always
+  // opening on Apparel — read once on mount, same lifetime as any other
+  // default here.
+  const searchParams = useSearchParams();
+  const [flow, setFlow] = useState<AIStudioFlow>(() => {
+    const requested = searchParams.get("flow");
+    return VALID_FLOWS.includes(requested as AIStudioFlow) ? (requested as AIStudioFlow) : "apparel_vto";
+  });
   const [category, setCategory] = useState<ApparelCategory | null>(null);
   const [jewelryCategory, setJewelryCategory] = useState<JewelryCategory | null>(null);
   const [ringFinger, setRingFinger] = useState<RingFinger>("ring");
