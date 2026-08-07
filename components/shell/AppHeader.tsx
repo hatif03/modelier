@@ -15,7 +15,7 @@ type AppHeaderProps = {
 const AppHeader = ({ breadcrumb, trailing, search, actions, dense, className }: AppHeaderProps) => (
   <header
     className={cn(
-      "flex items-center justify-between border-b border-border bg-card",
+      "flex items-center justify-between bg-transparent",
       dense ? "px-6 py-3" : "px-8 py-5",
       className
     )}

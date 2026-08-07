@@ -22,11 +22,11 @@ Modelier's signature mark is a hot-pink → near-black diagonal gradient, the sa
 
 **Where the gradient is allowed:**
 - The logo/wordmark
-- Primary hero CTAs on marketing/dashboard surfaces (e.g. "Create a design", "Generate")
 - Generation-in-progress states (progress bars, loading shimmer, skeleton pulse)
 - Empty-state illustration accents
 
-**Where it is NOT allowed** — everywhere else stays flat color:
+**Where it is NOT allowed** — everywhere else stays flat color, including primary CTAs:
+- Buttons of any kind, including hero/marketing CTAs like "Create a design" or "Generate" — these use the plain solid `default` Button variant (`bg-primary`). A button being the most important action on the page isn't a reason for it to carry the gradient; the gradient's job is brand recognition (logo) and system-status feedback (loading), not emphasis — use size, placement, and `--radius-xl` (see §5) to make a CTA feel important instead.
 - Body text, icons, borders
 - Secondary/tertiary buttons
 - Form controls, inputs, sliders
@@ -147,6 +147,7 @@ Canva's surfaces read rounder than ours currently do. New scale:
 | `--radius` | `0.75rem` (12px) | Cards, panels, dialogs, inputs |
 | `--radius-sm` | `0.5rem` (8px, `calc(var(--radius) - 4px)`) | Small controls, nested chips |
 | `--radius-lg` | `1rem` (16px) | Large hero cards, dashboard tiles |
+| `--radius-xl` | `1.375rem` (22px) | The heaviest, most prominent surfaces only — the "Create a design" modal shell and its body-level CTA. Not a general upgrade for `--radius-lg`; most dashboard tiles/cards stay at `lg`. |
 | `--radius-pill` | `9999px` | Buttons that should read as pills, chips, tags, avatars |
 
 ### Shadows
@@ -177,6 +178,14 @@ Today's UI is CSS-transition-only. Add `framer-motion` for anything beyond a sim
 | Generation progress shimmer | 1.4s loop | linear, brand-gradient sweep |
 
 Never animate layout-affecting properties (width/height) without a fixed container — prefer `transform`/`opacity` for performance.
+
+### Framer Motion vs. GSAP
+
+Both are dependencies; each owns a distinct job so they don't drift into overlapping responsibilities:
+
+- **Framer Motion** — anything whose animation state is *derived from React state/props changing*: conditional render, list membership (`AnimatePresence` when search-filtering a grid), route/mode transitions.
+- **GSAP** (via `@gsap/react`'s `useGSAP` hook, for automatic cleanup) — *one-shot imperative sequences* that don't map to a single component's state: a page's first-paint entrance stagger across otherwise-unrelated elements, and hover micro-interactions finer than a CSS `:hover` or Framer `whileHover` naturally expresses (e.g. an icon pop).
+- Plain CSS transitions (like `.hover-lift`) stay plain CSS — don't reach for either library for a two-property hover.
 
 ---
 

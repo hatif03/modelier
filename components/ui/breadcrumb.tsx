@@ -15,6 +15,9 @@ type BreadcrumbProps = {
 }
 
 const crumbClass = "font-serif text-lg tracking-tight text-foreground";
+// The root crumb is always the Modelier wordmark itself, across every page
+// that renders one — bolder than the rest of the trail so it reads as a logo.
+const rootCrumbClass = cn(crumbClass, "font-bold");
 
 const Breadcrumb = ({ items, trailing, className }: BreadcrumbProps) => (
   <div className={cn("flex items-center gap-2", className)}>
@@ -22,11 +25,11 @@ const Breadcrumb = ({ items, trailing, className }: BreadcrumbProps) => (
       <React.Fragment key={`${item.label}-${index}`}>
         {index > 0 && <span className="text-border">/</span>}
         {item.href ? (
-          <Link href={item.href} className={cn(crumbClass, "hover:text-accent")}>
+          <Link href={item.href} className={cn(index === 0 ? rootCrumbClass : crumbClass, "hover:text-accent")}>
             {item.label}
           </Link>
         ) : (
-          <span className={crumbClass}>{item.label}</span>
+          <span className={index === 0 ? rootCrumbClass : crumbClass}>{item.label}</span>
         )}
       </React.Fragment>
     ))}

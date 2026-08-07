@@ -84,9 +84,9 @@ function RecentItemsGrid<T extends RecentItem>({
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-[10px] uppercase tracking-widest text-muted-foreground">{title}</h2>
+      <h2 className="text-glow text-center text-[10px] uppercase tracking-widest text-muted-foreground">{title}</h2>
       {visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           {items.length === 0 ? emptyLabel : "No designs match your search."}
         </p>
       ) : (
@@ -95,7 +95,7 @@ function RecentItemsGrid<T extends RecentItem>({
             <div
               key={item.id}
               onClick={() => router.push(itemHref(item))}
-              className="hover-lift group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-card aspect-square hover:border-accent/60"
+              className="glass-card hover-lift group relative flex cursor-pointer flex-col overflow-hidden rounded-lg aspect-square hover:border-accent/60"
             >
               <div className="absolute right-2 top-2 z-10 hidden items-center gap-2 group-hover:flex">
                 {renderHoverAction?.(item)}
