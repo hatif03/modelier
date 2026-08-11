@@ -18,6 +18,7 @@ model User {
   projects       Project[]
   generations    Generation[]
   jewelryDesigns JewelryDesign[]
+  videoProjects  VideoProject[]
 }
 
 model BrandKit {
@@ -162,6 +163,29 @@ model JewelryDesign {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   user             User     @relation(fields: [userId], references: [id])
+}
+
+// A project in the standalone Video Studio (see app/video/*) — multi-track timeline
+// edited client-side with WebCodecs. Deliberately independent of Project/Template for
+// the same reason JewelryDesign is: a video timeline isn't a fabric.js canvas, so it
+// doesn't belong on the shared canvas project model. `timelineJson` is the serialized
+// zustand+zundo timeline store (tracks/clips/trim points/captions) — the editor is the
+// live source of truth while open, this is the persisted snapshot, same pattern as
+// Project.canvasJson.
+model VideoProject {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  templateId   String // one of lib/video/templates.ts's ids, or "custom"
+  width        Int
+  height       Int
+  fps          Int      @default(30)
+  durationMs   Int      @default(0)
+  timelineJson Json     @default("{}")
+  thumbnailUrl String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
 }
 
 // One selectable swatch for one part of one jewelry category in the configurator (e.g.
