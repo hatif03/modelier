@@ -25,9 +25,7 @@ const Dashboard = () => {
 
   // Single shared create-project path — the format grid and the custom-size
   // dialog both call this instead of each keeping its own copy.
-  // `redirectQuery` is what lets "Video" land the user directly in the
-  // editor's Video flow.
-  const createProject = async (body: Record<string, unknown>, redirectQuery?: string) => {
+  const createProject = async (body: Record<string, unknown>) => {
     setIsCreating(true);
     const res = await fetch("/api/projects", {
       method: "POST",
@@ -36,7 +34,7 @@ const Dashboard = () => {
     });
     const json = await res.json();
     setIsCreating(false);
-    if (res.ok) router.push(`/design/${json.project.id}${redirectQuery ?? ""}`);
+    if (res.ok) router.push(`/design/${json.project.id}`);
   };
 
   // One-shot entrance stagger on first paint — imperative sequencing across
@@ -70,7 +68,7 @@ const Dashboard = () => {
           <div className="dash-stagger-item">
             <QuickActionsRow
               onPost={() => setCreateModalOpen(true)}
-              onVideo={() => createProject({ format: "instagram_story" }, "?flow=image_to_video")}
+              onVideo={() => router.push("/video")}
               onCustom={() => setCustomSizeOpen(true)}
               onJewelry={() => router.push("/jewelry")}
             />

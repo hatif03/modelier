@@ -341,6 +341,25 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
     setHasPlaceholder(false);
   };
 
+  // image_to_video generates a clip but this canvas has no timeline to put it
+  // on — hand it off to Video Studio instead, opened in a new tab so the
+  // canvas session here isn't lost. The editor fetches importUrl itself on
+  // load and imports it like any other local media (see VideoEditor.tsx).
+  const handleSendToVideoStudio = async (url: string) => {
+    try {
+      const res = await fetch("/api/video-projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId: "general" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Could not create a video project.");
+      window.open(`/video/${json.videoProject.id}?importUrl=${encodeURIComponent(url)}`, "_blank");
+    } catch {
+      setErrorMessage("Couldn't send that clip to Video Studio — try again.");
+    }
+  };
+
   // A past render clicked from the recents strip should land wherever a
   // fresh one would — into an empty template placeholder if this project has
   // one, otherwise straight onto the canvas.
@@ -501,6 +520,7 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
             variants={generation.variants}
             onAddToCanvas={handleAddToCanvas}
             onDropIntoPlaceholder={hasPlaceholder ? handleDropIntoPlaceholder : undefined}
+            onSendToVideoStudio={handleSendToVideoStudio}
             garmentColorHex={generation.garmentColorHex}
           />
         </>

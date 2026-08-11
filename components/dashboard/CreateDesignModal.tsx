@@ -9,7 +9,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isCreating: boolean;
-  onCreateProject: (body: Record<string, unknown>, redirectQuery?: string) => void;
+  onCreateProject: (body: Record<string, unknown>) => void;
 };
 
 // Just the format-ratio picker — "Edit a video", "Custom size", and "Design

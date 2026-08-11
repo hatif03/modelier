@@ -10,9 +10,10 @@ type Props = {
   variant: GenerationVariantView;
   onAddToCanvas?: (url: string) => void;
   onDropIntoPlaceholder?: (url: string) => void;
+  onSendToVideoStudio?: (url: string) => void;
 };
 
-const VariantCard = ({ variant, onAddToCanvas, onDropIntoPlaceholder }: Props) => {
+const VariantCard = ({ variant, onAddToCanvas, onDropIntoPlaceholder, onSendToVideoStudio }: Props) => {
   if (variant.status === "processing") {
     return (
       <div className="flex aspect-[3/4] animate-pulse flex-col items-center justify-center rounded-sm border border-border bg-muted/40 text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -63,13 +64,25 @@ const VariantCard = ({ variant, onAddToCanvas, onDropIntoPlaceholder }: Props) =
           <p className="font-serif text-xs italic text-foreground">{variant.colorHarmonyNote}</p>
         )}
         {variant.isVideo ? (
-          <a
-            href={variant.resultImageUrl}
-            download
-            className="rounded-sm border border-border bg-background px-2 py-1.5 text-center text-[11px] hover:border-accent hover:text-accent"
-          >
-            Download clip
-          </a>
+          <div className="flex gap-1.5">
+            <a
+              href={variant.resultImageUrl}
+              download
+              className="flex-1 rounded-sm border border-border bg-background px-2 py-1.5 text-center text-[11px] hover:border-accent hover:text-accent"
+            >
+              Download clip
+            </a>
+            {onSendToVideoStudio && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 border-border bg-background text-[11px] hover:border-accent hover:bg-background hover:text-accent"
+                onClick={() => variant.resultImageUrl && onSendToVideoStudio(variant.resultImageUrl)}
+              >
+                Send to Video Studio
+              </Button>
+            )}
+          </div>
         ) : (
           hasCanvasActions && (
             <div className="flex gap-1.5">

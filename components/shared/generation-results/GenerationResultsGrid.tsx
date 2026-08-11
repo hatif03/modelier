@@ -7,6 +7,8 @@ type Props = {
   variants: GenerationVariantView[];
   onAddToCanvas?: (url: string) => void;
   onDropIntoPlaceholder?: (url: string) => void;
+  /** Only relevant for isVideo variants — this canvas has no timeline to drop a clip onto. */
+  onSendToVideoStudio?: (url: string) => void;
   className?: string;
   /** The apparel/jewelry source photo's extracted dominant color, if any — renders a Magic Palette bar above the grid. */
   garmentColorHex?: string;
@@ -15,7 +17,14 @@ type Props = {
 // Shared by the main editor's AI Model Studio panel and Jewelry Studio's
 // "Preview on a model" modal — previously each had its own separate
 // reimplementation of this same grid.
-const GenerationResultsGrid = ({ variants, onAddToCanvas, onDropIntoPlaceholder, className, garmentColorHex }: Props) => (
+const GenerationResultsGrid = ({
+  variants,
+  onAddToCanvas,
+  onDropIntoPlaceholder,
+  onSendToVideoStudio,
+  className,
+  garmentColorHex,
+}: Props) => (
   <>
     {garmentColorHex && (
       <div className="px-5 pt-3">
@@ -28,7 +37,12 @@ const GenerationResultsGrid = ({ variants, onAddToCanvas, onDropIntoPlaceholder,
           {variant.isAnalysis ? (
             <EffectAnalysisCard variant={variant} />
           ) : (
-            <VariantCard variant={variant} onAddToCanvas={onAddToCanvas} onDropIntoPlaceholder={onDropIntoPlaceholder} />
+            <VariantCard
+              variant={variant}
+              onAddToCanvas={onAddToCanvas}
+              onDropIntoPlaceholder={onDropIntoPlaceholder}
+              onSendToVideoStudio={onSendToVideoStudio}
+            />
           )}
         </div>
       ))}
