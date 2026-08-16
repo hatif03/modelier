@@ -20,6 +20,9 @@ const FLOWS: { id: AIStudioFlow; label: string }[] = [
   { id: "jewelry_vto", label: "Jewelry" },
   { id: "image_to_video", label: "Video" },
   { id: "backdrop", label: "Backdrop" },
+  { id: "avatar_generator", label: "Avatar" },
+  { id: "headshot_generator", label: "Headshot" },
+  { id: "studio_generator", label: "Studio" },
 ];
 
 // Two-level picker: the top row is flow/category-first (four existing

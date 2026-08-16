@@ -38,7 +38,13 @@ const UploadsPanel = ({ fabricRef, syncShapeInStorage }: Props) => {
 
         const generations: LibraryItem[] = (generationsJson.generations ?? [])
           .flatMap((g: any) => g.variants ?? [])
-          .filter((v: any) => v.status === "success" && v.resultImageUrl && v.youcamFeature !== "image-to-video")
+          .filter(
+            (v: any) =>
+              v.status === "success" &&
+              v.resultImageUrl &&
+              v.youcamFeature !== "image-to-video" &&
+              v.youcamFeature !== "image-to-video-v1"
+          )
           .map((v: any) => ({ id: `generation-${v.id}`, url: v.resultImageUrl, label: v.referenceModel?.label ?? "Render" }));
 
         setLibraryItems([...designs, ...generations].slice(0, 24));

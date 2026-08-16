@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { EffectDefinition, EffectTemplateControl, EffectSliderControl, EffectSelectControl } from "@/lib/ai-model-studio/effects";
+import { Input } from "@/components/ui/input";
+import {
+  EffectDefinition,
+  EffectTemplateControl,
+  EffectSliderControl,
+  EffectSelectControl,
+  EffectTextControl,
+} from "@/lib/ai-model-studio/effects";
 
 type Props = {
   effect: EffectDefinition;
@@ -91,8 +98,9 @@ const EffectParamsForm = ({ effect, values, onChange }: Props) => {
   }
 
   const templateControls = effect.controls.filter((c): c is EffectTemplateControl => c.type === "template");
+  const textControls = effect.controls.filter((c): c is EffectTextControl => c.type === "text");
   const tunableControls = effect.controls.filter(
-    (c): c is EffectSliderControl | EffectSelectControl => c.type !== "template"
+    (c): c is EffectSliderControl | EffectSelectControl => c.type !== "template" && c.type !== "text"
   );
 
   if (effect.controls.length === 0) {
@@ -105,6 +113,20 @@ const EffectParamsForm = ({ effect, values, onChange }: Props) => {
         <div key={control.key} className="flex flex-col gap-2 px-5 py-3">
           <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground">{control.label}</h4>
           <TemplateSwatchPicker control={control} value={values[control.key]} onSelect={(id) => onChange(control.key, id)} />
+        </div>
+      ))}
+
+      {textControls.map((control) => (
+        <div key={control.key} className="flex flex-col gap-2 px-5 py-3">
+          <h4 className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            {control.label}
+            {control.required ? " *" : " (optional)"}
+          </h4>
+          <Input
+            value={String(values[control.key] ?? "")}
+            placeholder={control.placeholder}
+            onChange={(e) => onChange(control.key, e.target.value)}
+          />
         </div>
       ))}
 

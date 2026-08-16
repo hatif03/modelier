@@ -30,6 +30,8 @@ import BeautyShadeSelector from "./BeautyShadeSelector";
 import VideoOptions from "./VideoOptions";
 import BackdropOptions from "./BackdropOptions";
 import EffectParamsForm from "./EffectParamsForm";
+import MaskPainter from "./MaskPainter";
+import GenerativePortraitOptions from "./GenerativePortraitOptions";
 import CastingCallPicker from "./CastingCallPicker";
 import GenerateActions from "./GenerateActions";
 import GenerationResultsGrid from "@/components/shared/generation-results/GenerationResultsGrid";
@@ -49,7 +51,23 @@ type Props = {
   allShapes: Array<any>;
 };
 
-const VALID_FLOWS: AIStudioFlow[] = ["apparel_vto", "makeup_vto", "jewelry_vto", "image_to_video", "effect", "backdrop"];
+const VALID_FLOWS: AIStudioFlow[] = [
+  "apparel_vto",
+  "makeup_vto",
+  "jewelry_vto",
+  "image_to_video",
+  "effect",
+  "backdrop",
+  "avatar_generator",
+  "headshot_generator",
+  "studio_generator",
+];
+
+const GENERATIVE_PORTRAIT_FEATURES: Record<"avatar_generator" | "headshot_generator" | "studio_generator", string> = {
+  avatar_generator: "ai-avatar",
+  headshot_generator: "headshot",
+  studio_generator: "ai-studio",
+};
 
 const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteShapeFromStorage, allShapes }: Props) => {
   // Lets a dashboard entry point like "Edit a video" (CreateDesignModal.tsx)
@@ -68,6 +86,7 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
   const [effectId, setEffectId] = useState<string | null>(null);
   const [effectFile, setEffectFile] = useState<File | null>(null);
   const [effectRefFile, setEffectRefFile] = useState<File | null>(null);
+  const [effectMaskFile, setEffectMaskFile] = useState<File | null>(null);
   const [effectParams, setEffectParams] = useState<Record<string, number | string>>({});
   const [shadeHex, setShadeHex] = useState("#C2185B");
   const [generation, setGeneration] = useState<GenerationView | null>(null);
@@ -85,11 +104,19 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
   const [videoPrompt, setVideoPrompt] = useState("");
   const [videoResolution, setVideoResolution] = useState<"480" | "720" | "1080">("720");
   const [videoDuration, setVideoDuration] = useState<5 | 10>(5);
+  const [videoMode, setVideoMode] = useState<"prompt" | "template">("prompt");
+  const [videoTemplateId, setVideoTemplateId] = useState<string | null>(null);
 
   // Backdrop flow state — generates a scene from a prompt, no source photo
   // or ReferenceModel diversity concept applies (same shape as video above).
   const [backdropPreset, setBackdropPreset] = useState<string | null>(null);
   const [backdropExtra, setBackdropExtra] = useState("");
+
+  // Avatar/Headshot/Studio Generator flow state — a selfie + a curated
+  // template + how many variations to generate (see generativePortraits.ts).
+  const [portraitFile, setPortraitFile] = useState<File | null>(null);
+  const [portraitTemplateId, setPortraitTemplateId] = useState<string | null>(null);
+  const [portraitOutputCount, setPortraitOutputCount] = useState(1);
 
   useEffect(() => {
     fetch("/api/reference-models")
@@ -124,7 +151,13 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
           .filter((g: any) => g.flow === flow)
           .flatMap((g: any) =>
             (g.variants ?? [])
-              .filter((v: any) => v.status === "success" && v.resultImageUrl && v.youcamFeature !== "image-to-video")
+              .filter(
+                (v: any) =>
+                  v.status === "success" &&
+                  v.resultImageUrl &&
+                  v.youcamFeature !== "image-to-video" &&
+                  v.youcamFeature !== "image-to-video-v1"
+              )
               .map((v: any) => ({
                 id: v.id,
                 resultImageUrl: v.resultImageUrl,
@@ -149,11 +182,21 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
   const isGenerating = generation?.status === "processing";
   const canGenerate =
     flow === "image_to_video"
-      ? Boolean(videoPrompt.trim() && ((useCanvasSelection && hasCanvasImageSelection) || videoFile))
+      ? Boolean(
+          (videoMode === "prompt" ? videoPrompt.trim() : videoTemplateId) &&
+            ((useCanvasSelection && hasCanvasImageSelection) || videoFile)
+        )
       : flow === "backdrop"
         ? Boolean(backdropPreset)
+        : flow === "avatar_generator" || flow === "headshot_generator" || flow === "studio_generator"
+        ? Boolean(portraitFile && portraitTemplateId)
         : flow === "effect"
-        ? Boolean(effectFile && effectId && activeEffect && isEffectReady(activeEffect, effectParams, Boolean(effectRefFile)))
+        ? Boolean(
+            effectFile &&
+              effectId &&
+              activeEffect &&
+              isEffectReady(activeEffect, effectParams, Boolean(effectRefFile), Boolean(effectMaskFile))
+          )
         : flow === "apparel_vto"
           ? selectedModelIds.length > 0 && Boolean(file && category)
           : flow === "jewelry_vto"
@@ -164,6 +207,9 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
     setFlow(next);
     setGeneration(null);
     setErrorMessage(null);
+    setPortraitFile(null);
+    setPortraitTemplateId(null);
+    setPortraitOutputCount(1);
   };
 
   const handleEffectChange = (nextEffectId: string) => {
@@ -171,6 +217,7 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
     const next = getEffect(nextEffectId);
     setEffectParams(next ? defaultParamsFor(next) : {});
     setEffectRefFile(null);
+    setEffectMaskFile(null);
     setGeneration(null);
     setErrorMessage(null);
   };
@@ -228,7 +275,29 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
         effectId,
         effectParams: paramsForSubmission(activeEffect, effectParams),
         refFile: activeEffect.refPhotoLabel ? effectRefFile : undefined,
+        maskFile: activeEffect.maskLabel ? effectMaskFile : undefined,
         referenceModelIds: [],
+      });
+      setGeneration(started);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to start generation.");
+    }
+  };
+
+  const runPortraitGeneration = async () => {
+    if (!portraitFile || !portraitTemplateId) {
+      setErrorMessage("Upload a selfie and pick a style before generating.");
+      return;
+    }
+
+    setErrorMessage(null);
+    try {
+      const started = await startGeneration({
+        file: portraitFile,
+        flow: flow as "avatar_generator" | "headshot_generator" | "studio_generator",
+        referenceModelIds: [],
+        templateId: portraitTemplateId,
+        outputCount: portraitOutputCount,
       });
       setGeneration(started);
     } catch (err) {
@@ -257,8 +326,12 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
   };
 
   const runVideoGeneration = async () => {
-    if (!videoPrompt.trim()) {
+    if (videoMode === "prompt" && !videoPrompt.trim()) {
       setErrorMessage("Describe the motion you want in the clip.");
+      return;
+    }
+    if (videoMode === "template" && !videoTemplateId) {
+      setErrorMessage("Pick a motion template.");
       return;
     }
 
@@ -279,9 +352,11 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
         file: sourceFile,
         flow: "image_to_video",
         referenceModelIds: [],
-        prompt: videoPrompt.trim(),
+        prompt: videoMode === "prompt" ? videoPrompt.trim() : undefined,
         resolution: videoResolution,
         durationSeconds: videoDuration,
+        videoMode,
+        templateId: videoMode === "template" ? (videoTemplateId ?? undefined) : undefined,
       });
       setGeneration(started);
     } catch (err) {
@@ -455,6 +530,9 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
               <Dropzone file={effectRefFile} onFileSelected={setEffectRefFile} label="Upload a second reference photo" />
             </div>
           )}
+          {activeEffect.maskLabel && (
+            <MaskPainter sourceFile={effectFile} label={activeEffect.maskLabel} onMaskFile={setEffectMaskFile} />
+          )}
         </>
       ) : flow === "backdrop" ? (
         <BackdropOptions
@@ -462,6 +540,16 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
           onPresetChange={setBackdropPreset}
           extra={backdropExtra}
           onExtraChange={setBackdropExtra}
+        />
+      ) : flow === "avatar_generator" || flow === "headshot_generator" || flow === "studio_generator" ? (
+        <GenerativePortraitOptions
+          feature={GENERATIVE_PORTRAIT_FEATURES[flow]}
+          file={portraitFile}
+          onFileSelected={setPortraitFile}
+          templateId={portraitTemplateId}
+          onTemplateChange={setPortraitTemplateId}
+          outputCount={portraitOutputCount}
+          onOutputCountChange={setPortraitOutputCount}
         />
       ) : (
         <VideoOptions
@@ -479,6 +567,10 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
           onResolutionChange={setVideoResolution}
           durationSeconds={videoDuration}
           onDurationChange={setVideoDuration}
+          mode={videoMode}
+          onModeChange={setVideoMode}
+          templateId={videoTemplateId}
+          onTemplateChange={setVideoTemplateId}
         />
       )}
 
@@ -503,10 +595,18 @@ const AIModelStudioPanel = ({ fabricRef, shapeRef, syncShapeInStorage, deleteSha
               ? runBackdropGeneration
               : flow === "effect"
                 ? runEffectGeneration
-                : () => runGeneration([selectedModelIds[0]].filter(Boolean))
+                : flow === "avatar_generator" || flow === "headshot_generator" || flow === "studio_generator"
+                  ? runPortraitGeneration
+                  : () => runGeneration([selectedModelIds[0]].filter(Boolean))
         }
         onGenerateBatch={
-          flow === "image_to_video" || flow === "backdrop" || flow === "effect" || selectedModelIds.length < 2
+          flow === "image_to_video" ||
+          flow === "backdrop" ||
+          flow === "effect" ||
+          flow === "avatar_generator" ||
+          flow === "headshot_generator" ||
+          flow === "studio_generator" ||
+          selectedModelIds.length < 2
             ? undefined
             : () => runGeneration(selectedModelIds)
         }
