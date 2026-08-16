@@ -27,23 +27,27 @@ type SourceHandles = {
 // Opens each media asset's decoder once and reuses it across every frame/sample
 // request for the lifetime of an editing or export session.
 export class MediaSinkCache {
-  private handles = new Map<string, Promise<SourceHandles>>();
-  private images = new Map<string, Promise<ImageBitmap>>();
+  private handles = new Map<string, Promise<SourceHandles | null>>();
+  private images = new Map<string, Promise<ImageBitmap | null>>();
 
-  async getHandles(asset: MediaAsset, targetWidth: number, targetHeight: number): Promise<SourceHandles> {
+  // Returns null (rather than a rejected promise) when the source file can't be
+  // recovered — e.g. its OPFS copy is missing and its blob: URL was scoped to a
+  // browser session that's since closed (opening a project on a different
+  // device/browser, or after clearing site data, hits this legitimately).
+  async getHandles(asset: MediaAsset, targetWidth: number, targetHeight: number): Promise<SourceHandles | null> {
     const key = asset.id;
     let promise = this.handles.get(key);
     if (!promise) {
-      promise = this.open(asset, targetWidth, targetHeight);
+      promise = this.open(asset, targetWidth, targetHeight).catch(() => null);
       this.handles.set(key, promise);
     }
     return promise;
   }
 
-  async getImage(asset: MediaAsset): Promise<ImageBitmap> {
+  async getImage(asset: MediaAsset): Promise<ImageBitmap | null> {
     let promise = this.images.get(asset.id);
     if (!promise) {
-      promise = fileForAsset(asset).then((file) => createImageBitmap(file));
+      promise = fileForAsset(asset).then((file) => createImageBitmap(file)).catch(() => null);
       this.images.set(asset.id, promise);
     }
     return promise;
@@ -64,10 +68,20 @@ export class MediaSinkCache {
   }
 
   dispose() {
-    for (const p of this.handles.values()) p.then((h) => h.input.dispose()).catch(() => {});
+    for (const p of this.handles.values()) p.then((h) => h?.input.dispose()).catch(() => {});
     this.handles.clear();
     this.images.clear();
   }
+}
+
+function drawUnavailablePlaceholder(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(0, 0, w, h);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font = `${Math.round(h * 0.03)}px system-ui, sans-serif`;
+  ctx.fillText("Media unavailable on this device — re-import this clip", w / 2, h / 2);
 }
 
 function activeClip(clips: Clip[], trackId: string, atMs: number): Clip | undefined {
@@ -138,13 +152,22 @@ export async function renderFrame(
 
     if (asset.kind === "image") {
       const bitmap = await cache.getImage(asset);
+      if (!bitmap) {
+        drawUnavailablePlaceholder(ctx, width, height);
+        ctx.filter = "none";
+        continue;
+      }
       const scale = Math.max(width / bitmap.width, height / bitmap.height);
       const dw = bitmap.width * scale;
       const dh = bitmap.height * scale;
       ctx.drawImage(bitmap, (width - dw) / 2, (height - dh) / 2, dw, dh);
     } else {
       const handles = await cache.getHandles(asset, width, height);
-      if (!handles.canvasSink) continue;
+      if (!handles?.canvasSink) {
+        drawUnavailablePlaceholder(ctx, width, height);
+        ctx.filter = "none";
+        continue;
+      }
       const sourceSec = (clip.sourceInMs + (atMs - clip.startMs)) / 1000;
       const wrapped = await handles.canvasSink.getCanvas(sourceSec);
       if (wrapped) ctx.drawImage(wrapped.canvas, 0, 0, width, height);
@@ -222,7 +245,7 @@ export async function mixTimelineAudio(
     const asset = timeline.media[clip.mediaId];
     if (!asset) continue;
     const handles = await cache.getHandles(asset, 2, 2);
-    if (!handles.audioSink) continue;
+    if (!handles?.audioSink) continue;
 
     const startSec = clip.sourceInMs / 1000;
     const endSec = clip.sourceOutMs / 1000;

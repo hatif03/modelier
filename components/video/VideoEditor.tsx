@@ -189,7 +189,7 @@ const VideoEditor = ({ project }: { project: VideoProjectData }) => {
 
           <div className="flex flex-1 flex-col overflow-hidden">
             <div className="flex flex-1 items-center justify-center overflow-hidden bg-black/90 p-4">
-              <Preview />
+              <Preview projectId={project.id} />
             </div>
             <div className="h-56 flex-none border-t border-border bg-card">
               <Timeline />
