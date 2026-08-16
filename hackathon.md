@@ -43,7 +43,6 @@ Next.js 14, TypeScript, Prisma, Supabase (Postgres + Storage), NextAuth, Liveblo
 
 08-05-26
 
-*This is an existing project extended for this submission period — during this window we integrated 24 additional YouCam endpoints (hair-attribute detection, general photo editing, avatar/headshot/studio generation, and six video effects), found and fixed 12 real bugs by testing every endpoint live, and built a complete permanent editorial campaign across jewelry CAD, photo, and video to prove it all works together.*
 
 ## Feature / value description
 
