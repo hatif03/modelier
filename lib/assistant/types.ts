@@ -26,4 +26,4 @@ export interface AssistantProvider {
   chat(messages: AssistantMessage[], tools: ToolDefinition[], systemPrompt: string): Promise<ProviderTurnResult>;
 }
 
-export type AssistantProviderId = "anthropic" | "openai" | "gemini" | "k2think";
+export type AssistantProviderId = "anthropic" | "openai" | "gemini" | "k2think" | "groq";

@@ -8,8 +8,8 @@ import { createGeminiProvider } from "./gemini";
 // provider's own credentials are set. See .env.example for the full list.
 export function resolveAssistantProviderId(): AssistantProviderId {
   const raw = (process.env.ASSISTANT_PROVIDER || "anthropic").toLowerCase();
-  if (raw === "anthropic" || raw === "openai" || raw === "gemini" || raw === "k2think") return raw;
-  throw new Error(`Unknown ASSISTANT_PROVIDER "${raw}" — expected anthropic, openai, gemini, or k2think.`);
+  if (raw === "anthropic" || raw === "openai" || raw === "gemini" || raw === "k2think" || raw === "groq") return raw;
+  throw new Error(`Unknown ASSISTANT_PROVIDER "${raw}" — expected anthropic, openai, gemini, k2think, or groq.`);
 }
 
 export function getAssistantProvider(id: AssistantProviderId = resolveAssistantProviderId()): AssistantProvider {
@@ -24,14 +24,22 @@ export function getAssistantProvider(id: AssistantProviderId = resolveAssistantP
     case "gemini":
       return createGeminiProvider();
     case "k2think":
-      // K2 Think (MBZUAI Institute of Foundation Models) is served through an
-      // OpenAI-compatible chat-completions endpoint — point K2THINK_BASE_URL
-      // at whichever inference host serves it (self-hosted vLLM, or a
-      // provider that hosts it), no separate SDK needed.
+      // K2 Think (MBZUAI Institute of Foundation Models), hosted at
+      // api.k2think.ai — an OpenAI-compatible chat-completions endpoint.
+      // K2THINK_BASE_URL is still configurable in case you're self-hosting
+      // instead (e.g. a local vLLM server).
       return createOpenAICompatibleProvider({
-        apiKey: process.env.K2THINK_API_KEY || "not-required",
-        baseURL: requireEnv("K2THINK_BASE_URL"),
-        model: process.env.K2THINK_MODEL || "LLM360/K2-Think-V2",
+        apiKey: requireEnv("K2THINK_API_KEY"),
+        baseURL: process.env.K2THINK_BASE_URL || "https://api.k2think.ai/v1",
+        model: process.env.K2THINK_MODEL || "MBZUAI-IFM/K2-Think-v2",
+      });
+    case "groq":
+      // Groq serves its hosted models through the same OpenAI-compatible
+      // chat-completions shape, at a fixed, publicly documented base URL.
+      return createOpenAICompatibleProvider({
+        apiKey: requireEnv("GROQ_API_KEY"),
+        baseURL: "https://api.groq.com/openai/v1",
+        model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
       });
   }
 }
