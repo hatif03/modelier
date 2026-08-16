@@ -115,6 +115,24 @@ const CadViewport = forwardRef<CadViewportHandle, { assembly: TessellatedAssembl
             : new THREE.MeshStandardMaterial({ color: METAL_COLOR[metalColor] ?? METAL_COLOR.yellow, roughness: 0.25, metalness: 0.9 });
         ctx.group.add(new THREE.Mesh(geometry, material));
       }
+
+      // Reframe on every geometry change — a fixed camera position only ever
+      // looked right for ring-sized parts; a 450mm necklace chain is more than
+      // 10x that span and rendered almost entirely outside the fixed framing.
+      const box = new THREE.Box3().setFromObject(ctx.group);
+      if (!box.isEmpty()) {
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        const radius = Math.max(size.x, size.y, size.z, 1) / 2;
+        const distance = radius / Math.sin((ctx.camera.fov * Math.PI) / 360) * 1.4;
+        const direction = new THREE.Vector3(1, 0.8, 1).normalize();
+        ctx.camera.position.copy(center).addScaledVector(direction, distance);
+        ctx.camera.near = Math.max(distance / 100, 0.01);
+        ctx.camera.far = distance * 100;
+        ctx.camera.updateProjectionMatrix();
+        ctx.controls.target.copy(center);
+        ctx.controls.update();
+      }
     }, [assembly, metalColor]);
 
     useImperativeHandle(ref, () => ({
