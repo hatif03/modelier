@@ -12,6 +12,38 @@ const transformersWebPath = path.join(
   path.dirname(require.resolve("@huggingface/transformers")),
   "transformers.web.js"
 );
+// transformers.web.js does `import * as ONNX_WEB from "onnxruntime-web/webgpu"`,
+// which the package's "import" export maps to the ESM bundle
+// (ort.webgpu.bundle.min.mjs). That file uses `new URL(..., import.meta.url)`
+// so webpack 5 copies it to static/media/*.mjs; Next's SWC minifier then
+// parses the copy as a script and dies on import.meta / export. The UMD build
+// has neither, and transformers already points wasmPaths at the jsDelivr CDN.
+const onnxruntimeWebgpuUmdPath = path.join(
+  path.dirname(require.resolve("onnxruntime-web")),
+  "ort.webgpu.min.js"
+);
+
+// Next 14's TerserPlugin is applied as a function and has no `exclude` option;
+// it minifies every emitted .mjs unless the asset is already marked minimized.
+function markOrtEsmAssetsMinimized(compiler) {
+  const { Compilation } = compiler.webpack;
+  compiler.hooks.compilation.tap("MarkOrtEsmAssetsMinimized", (compilation) => {
+    compilation.hooks.processAssets.tap(
+      {
+        name: "MarkOrtEsmAssetsMinimized",
+        stage: Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE - 1,
+      },
+      () => {
+        for (const name of Object.keys(compilation.assets)) {
+          if (!/\.mjs$/i.test(name) || !/ort(\.webgpu)?\.bundle\.min/i.test(name)) continue;
+          const asset = compilation.getAsset(name);
+          if (!asset || asset.info.minimized) continue;
+          compilation.updateAsset(name, asset.source, { ...asset.info, minimized: true });
+        }
+      }
+    );
+  });
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -65,8 +97,12 @@ const nextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         "@huggingface/transformers$": transformersWebPath,
+        "onnxruntime-web/webgpu$": onnxruntimeWebgpuUmdPath,
+        sharp$: false,
       };
     }
+
+    config.plugins.push({ apply: markOrtEsmAssetsMinimized });
 
     // replicad-opencascadejs's WASM binary (lib/jewelry/cad/worker.ts) is only ever
     // loaded via its own `locateFile` fetch, never a native `import ... from "*.wasm"`
