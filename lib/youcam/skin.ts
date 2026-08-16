@@ -91,7 +91,6 @@ export async function getSkinSimulationStatus(taskId: string) {
 
 // ---- Fitzpatrick skin type — preprocess (face detection) then analyze; a DATA result.
 export type FitzpatrickPrepResult = { faces?: Array<{ index: number }> };
-export type FitzpatrickResult = { result?: "I" | "II" | "III" | "IV" | "V" | "VI" };
 
 export async function createFitzpatrickSkinTypeTask(input: SrcFileInput & { faceIndex?: number }): Promise<string> {
   const prepPayload: Record<string, unknown> = {};
@@ -101,7 +100,11 @@ export async function createFitzpatrickSkinTypeTask(input: SrcFileInput & { face
     "fitzpatrick-scale-analyzer",
     prepPayload,
     () => {
-      const mainPayload: Record<string, unknown> = {};
+      // `version` is a REQUIRED field on the main task (missing here was a
+      // real, pre-existing bug — every call failed with InvalidParameters
+      // regardless of photo quality; confirmed against the real OpenAPI spec
+      // at https://docs.perfectcorp.com/_bundle/reference/ai_fitzpatrick_skin_type.yaml).
+      const mainPayload: Record<string, unknown> = { version: "1.0" };
       withSrcFile(mainPayload, input, "createFitzpatrickSkinTypeTask");
       if (input.faceIndex !== undefined) mainPayload.index = input.faceIndex;
       return mainPayload;
@@ -109,6 +112,8 @@ export async function createFitzpatrickSkinTypeTask(input: SrcFileInput & { face
   );
 }
 
+export type FitzpatrickTaskResult = { fitzpatrick_scale?: "I" | "II" | "III" | "IV" | "V" | "VI"; timed?: number };
+
 export async function getFitzpatrickSkinTypeStatus(taskId: string) {
-  return getTaskStatus<FitzpatrickResult>("fitzpatrick-scale-analyzer", taskId);
+  return getTaskStatus<FitzpatrickTaskResult>("fitzpatrick-scale-analyzer", taskId);
 }

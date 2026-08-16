@@ -15,30 +15,36 @@ const STYLE_ACCESSORY_FEATURE_SLUGS: Record<StyleAccessoryCategory, string> = {
   scarf: "scarf",
 };
 
-// Confirmed style presets — "hat" doesn't document its own preset list, so it
-// falls back to a plain string until confirmed against the live API.
+// Real, genuinely PER-CATEGORY style-preset enums, confirmed against the
+// OpenAPI YAML bundles at https://docs.perfectcorp.com/_bundle/reference/
+// {ai_shoes,ai_hat,ai_bag,ai_scarf}.yaml — two real, pre-existing bugs here:
+// (1) the values previously here (bare "classic"/"sporty"/"elegant"/
+// "streetwear" etc, guessed via the lower-fidelity `.md`-fetch trick) were
+// invalid for every category, and a first-pass fix wrongly assumed all four
+// categories share one enum — they don't, each has its own distinct set
+// (only "random" is universal, and a couple of categories happen to also
+// share "style_bohemian"/"style_cottagecore"/"style_french_elegance");
+// (2) `gender` is required for ALL FOUR categories (via GenderRunTaskV2),
+// not just "shoes" as first assumed — every hat/bag/scarf call failed with
+// InvalidParameters until this was caught by actually running them for real.
 export const STYLE_ACCESSORY_PRESETS: Record<StyleAccessoryCategory, string[]> = {
-  shoes: ["classic", "sporty", "elegant", "streetwear", "minimalist", "random"],
-  scarf: ["french_elegance", "light_luxury", "cottagecore", "modern_chic", "bohemian", "random"],
-  bag: ["parisian_chic", "urban_chic", "mediterranean_chic", "art_deco_style", "random"],
-  hat: ["random"],
+  shoes: ["random", "style_minimalist", "style_bohemian", "style_cottagecore", "style_french_elegance", "style_retro_fashion"],
+  hat: ["random", "style_sporty_casual", "style_urban_fashion", "style_vacation_casual", "style_warm_cozy", "style_bohemian"],
+  bag: ["random", "style_parisian_chic", "style_urban_chic", "style_mediterranean_chic", "style_art_deco_style"],
+  scarf: ["random", "style_french_elegance", "style_light_luxury", "style_cottagecore", "style_modern_chic", "style_bohemian"],
 };
 
 export type StyleAccessoryInput = SrcFileInput &
-  Partial<RefFileInput> & {
-    gender?: "male" | "female";
+  RefFileInput & {
+    gender: "male" | "female";
     style: string;
   };
 
 export async function createStyleAccessoryTask(category: StyleAccessoryCategory, input: StyleAccessoryInput): Promise<string> {
-  const payload: Record<string, unknown> = { style: input.style };
+  if (!input.gender) throw new Error(`createStyleAccessoryTask requires gender for the ${category} category`);
+  const payload: Record<string, unknown> = { style: input.style, gender: input.gender };
   withSrcFile(payload, input, "createStyleAccessoryTask");
-  if (input.refFileId) payload.ref_file_id = input.refFileId;
-  else if (input.refFileUrl) payload.ref_file_url = input.refFileUrl;
-  if (category === "shoes") {
-    if (!input.gender) throw new Error("createStyleAccessoryTask requires gender for the shoes category");
-    payload.gender = input.gender;
-  }
+  withRefFile(payload, input, "createStyleAccessoryTask");
 
   return createTask(STYLE_ACCESSORY_FEATURE_SLUGS[category], payload);
 }
@@ -72,9 +78,19 @@ export async function getFabricStatus(taskId: string) {
   return getTaskStatus<FabricResult>("fabric", taskId);
 }
 
-// ---- Eye color lens VTO — a selfie plus a lens-style swatch image.
-export async function createEyeColorLensTask(input: SrcFileInput & RefFileInput): Promise<string> {
-  const payload: Record<string, unknown> = {};
+// ---- Eye color lens VTO — a selfie plus a lens-style swatch image. `version`
+// and `effect.intensity` are REQUIRED — both were missing here (a real,
+// pre-existing bug; every live call failed with InvalidParameters until
+// fixed), confirmed against https://docs.perfectcorp.com/_bundle/reference/
+// ai_eye_color_lens.yaml.
+export type EyeColorLensInput = SrcFileInput &
+  RefFileInput & { intensity?: number; enlargement?: number };
+
+export async function createEyeColorLensTask(input: EyeColorLensInput): Promise<string> {
+  const payload: Record<string, unknown> = {
+    version: "1.0",
+    effect: { intensity: input.intensity ?? 80, enlargement: input.enlargement ?? 0 },
+  };
   withSrcFile(payload, input, "createEyeColorLensTask");
   withRefFile(payload, input, "createEyeColorLensTask");
   return createTask("eye-color-vto", payload);

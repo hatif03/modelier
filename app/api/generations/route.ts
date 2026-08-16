@@ -16,7 +16,12 @@ import {
 } from "@/lib/youcam/jewelryVto";
 import { friendlyJewelryError, friendlyYoucamError } from "@/lib/youcam/friendlyError";
 import { createEffectTask, type EffectId } from "@/lib/youcam/effectDispatch";
+import { createGenerativePortraitTask, GENERATIVE_PORTRAIT_FEATURE_SLUGS } from "@/lib/youcam/generativePortraits";
+import { createVideoGeneratorTask } from "@/lib/youcam/video";
+import type { AIStudioFlow } from "@/lib/ai-model-studio/types";
 import { extractDominantColor } from "@/lib/colorHarmony";
+import { computeOutpaintGeometry, ASPECT_RATIOS, type AspectRatioId } from "@/lib/youcam/outpaintGeometry";
+import sharp from "sharp";
 
 // Diversity batches multiply YouCam unit spend 1:1 with variant count — this cap
 // protects the free unit allotment from a single runaway request.
@@ -32,7 +37,7 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
   const file = form.get("file");
-  const flow = form.get("flow");
+  const flow = form.get("flow") as AIStudioFlow | null;
   const garmentCategory = form.get("garmentCategory") as GarmentCategory | null;
   const jewelryCategory = form.get("jewelryCategory") as JewelryCategory | null;
   const ringFinger = form.get("ringFinger") as RingFinger | null;
@@ -52,12 +57,71 @@ export async function POST(req: Request) {
     flow !== "image_to_video" &&
     flow !== "jewelry_vto" &&
     flow !== "effect" &&
-    flow !== "backdrop"
+    flow !== "backdrop" &&
+    flow !== "avatar_generator" &&
+    flow !== "headshot_generator" &&
+    flow !== "studio_generator"
   ) {
     return NextResponse.json(
-      { error: "flow must be 'apparel_vto', 'makeup_vto', 'jewelry_vto', 'image_to_video', 'effect', or 'backdrop'." },
+      {
+        error:
+          "flow must be 'apparel_vto', 'makeup_vto', 'jewelry_vto', 'image_to_video', 'effect', 'backdrop', 'avatar_generator', 'headshot_generator', or 'studio_generator'.",
+      },
       { status: 400 }
     );
+  }
+
+  // Avatar/Headshot/Studio Generator — a selfie in, a curated template
+  // applied, N stylized portraits out. Same short-circuit shape as
+  // "backdrop"/"effect" above: no ReferenceModel diversity concept.
+  if (flow === "avatar_generator" || flow === "headshot_generator" || flow === "studio_generator") {
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "A selfie photo is required." }, { status: 400 });
+    }
+    const templateId = form.get("templateId");
+    if (typeof templateId !== "string" || !templateId) {
+      return NextResponse.json({ error: "Pick a style template." }, { status: 400 });
+    }
+    const outputCountRaw = form.get("outputCount");
+    const outputCount = outputCountRaw ? Math.min(200, Math.max(1, Number(outputCountRaw))) : 1;
+    const category = flow === "avatar_generator" ? "avatar" : flow === "headshot_generator" ? "headshot" : "studio";
+    const feature = GENERATIVE_PORTRAIT_FEATURE_SLUGS[category];
+
+    const generation = await db.generation.create({
+      data: {
+        userId: session.user.id,
+        projectId: typeof projectId === "string" && projectId ? projectId : undefined,
+        flow,
+        status: "processing",
+      },
+    });
+
+    let variant;
+    try {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const uploaded = await uploadFile(buffer, { contentType: file.type || "image/jpeg", fileName: file.name || "selfie.jpg" });
+      const taskId = await createGenerativePortraitTask(category, { srcFileId: uploaded.fileId, templateId, outputCount });
+      variant = await db.generationVariant.create({
+        data: { generationId: generation.id, youcamTaskId: taskId, youcamFeature: feature, status: "processing" },
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof YoucamApiError
+          ? friendlyYoucamError(err.errorCode)
+          : err instanceof Error
+            ? err.message
+            : "Failed to start generation.";
+      variant = await db.generationVariant.create({
+        data: { generationId: generation.id, youcamFeature: feature, status: "error", errorMessage },
+      });
+    }
+
+    await db.generation.update({
+      where: { id: generation.id },
+      data: { status: variant.status === "processing" ? "processing" : "error" },
+    });
+
+    return NextResponse.json({ generationId: generation.id, variants: [variant] }, { status: 201 });
   }
 
   // "backdrop" generates a scene from a prompt alone — no source photo, no
@@ -154,7 +218,32 @@ export async function POST(req: Request) {
         ).fileId;
       }
 
-      const { taskId, feature } = await createEffectTask(effectId, { srcFileId: uploaded.fileId, refFileId: effectRefFileId }, params);
+      let effectMskFileId: string | undefined;
+      const maskFile = form.get("maskFile");
+      if (maskFile instanceof File) {
+        const maskBuffer = Buffer.from(await maskFile.arrayBuffer());
+        effectMskFileId = (
+          await uploadFile(maskBuffer, { contentType: maskFile.type || "image/png", fileName: maskFile.name || "mask.png" })
+        ).fileId;
+      }
+
+      // Image Extender needs the source photo's actual pixel dimensions to
+      // compute its target-canvas placement params — the UI only exposes an
+      // aspect-ratio choice, not raw width/height, so that math happens here
+      // rather than asking the client to read image dimensions itself.
+      if (effectId === "image_extender") {
+        const { width, height } = await sharp(buffer).metadata();
+        if (!width || !height) throw new Error("Couldn't read that photo's dimensions.");
+        const aspectRatioId = (params.aspectRatio as AspectRatioId | undefined) ?? "4:5";
+        if (!(aspectRatioId in ASPECT_RATIOS)) throw new Error(`Unknown aspect ratio: ${aspectRatioId}`);
+        Object.assign(params, computeOutpaintGeometry(width, height, aspectRatioId));
+      }
+
+      const { taskId, feature } = await createEffectTask(
+        effectId,
+        { srcFileId: uploaded.fileId, refFileId: effectRefFileId, mskFileId: effectMskFileId },
+        params
+      );
       variant = await db.generationVariant.create({
         data: { generationId: generation.id, youcamTaskId: taskId, youcamFeature: feature, status: "processing" },
       });
@@ -185,9 +274,14 @@ export async function POST(req: Request) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "A source image is required." }, { status: 400 });
     }
+    const videoMode = form.get("videoMode") === "template" ? "template" : "prompt";
     const prompt = form.get("prompt");
-    if (typeof prompt !== "string" || !prompt.trim()) {
+    const templateId = form.get("templateId");
+    if (videoMode === "prompt" && (typeof prompt !== "string" || !prompt.trim())) {
       return NextResponse.json({ error: "Describe the motion you want in the clip." }, { status: 400 });
+    }
+    if (videoMode === "template" && (typeof templateId !== "string" || !templateId)) {
+      return NextResponse.json({ error: "Pick a motion template." }, { status: 400 });
     }
     const resolution = (form.get("resolution") as VideoResolution | null) ?? "720";
     const durationSeconds = form.get("durationSeconds") === "10" ? 10 : 5;
@@ -208,17 +302,32 @@ export async function POST(req: Request) {
         contentType: file.type || "image/png",
         fileName: file.name || "upload.png",
       });
-      const taskId = await createImageToVideoTask({
-        srcFileId: uploaded.fileId,
-        resolution,
-        durationSeconds,
-        prompt: prompt.trim(),
-      });
+      // "template" dispatches to the v1 AI Video Generator (createVideoGeneratorTask,
+      // feature slug "image-to-video") instead of the already-live v2 prompt-based
+      // generator (createImageToVideoTask, feature slug "image-to-video/youcam") —
+      // same flow, two input styles, see VideoOptions.tsx's mode toggle.
+      // Internal routing key only, not the literal YouCam feature slug (see
+      // getEffectStatus's sibling dispatch in the status route) — the v1
+      // template generator's real slug is ALSO literally "image-to-video",
+      // same as the pre-existing v2 prompt generator's stored key, so this
+      // flow needs its own distinct internal key ("image-to-video-v1") to
+      // avoid the status route routing template-mode tasks to the prompt
+      // getter (getImageToVideoStatus hits "image-to-video/youcam" for real).
+      const feature = videoMode === "template" ? "image-to-video-v1" : "image-to-video";
+      const taskId =
+        videoMode === "template"
+          ? await createVideoGeneratorTask({ srcFileId: uploaded.fileId, templateId: templateId as string, dstDuration: durationSeconds })
+          : await createImageToVideoTask({
+              srcFileId: uploaded.fileId,
+              resolution,
+              durationSeconds,
+              prompt: (prompt as string).trim(),
+            });
       variant = await db.generationVariant.create({
         data: {
           generationId: generation.id,
           youcamTaskId: taskId,
-          youcamFeature: "image-to-video",
+          youcamFeature: feature,
           status: "processing",
         },
       });
@@ -232,7 +341,7 @@ export async function POST(req: Request) {
       variant = await db.generationVariant.create({
         data: {
           generationId: generation.id,
-          youcamFeature: "image-to-video",
+          youcamFeature: videoMode === "template" ? "image-to-video-v1" : "image-to-video",
           status: "error",
           errorMessage,
         },

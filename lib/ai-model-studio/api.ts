@@ -17,21 +17,29 @@ export type StartGenerationInput = {
   effectId?: string;
   effectParams?: Record<string, unknown>;
   refFile?: File | null;
+  /** A painted grayscale mask — required by effects with EffectDefinition.maskLabel set. */
+  maskFile?: File | null;
   referenceModelIds: string[];
   prompt?: string;
   resolution?: "480" | "720" | "1080";
   durationSeconds?: 5 | 10;
+  /** image_to_video only — "template" dispatches to the v1 AI Video Generator instead of the v2 prompt-based generator. */
+  videoMode?: "prompt" | "template";
   /** Alternative to `file` for the jewelry flow — an already-hosted product photo URL, used by Jewelry Studio's "Preview on a model" action. */
   refImageUrl?: string;
+  /** Required for the avatar_generator/headshot_generator/studio_generator flows. */
+  templateId?: string;
+  outputCount?: number;
 };
 
 function toVariantView(v: any): GenerationVariantView {
   return {
     id: v.id,
-    referenceModelLabel: v.referenceModel?.label ?? (v.youcamFeature === "image-to-video" ? "Video clip" : "Reference model"),
+    referenceModelLabel:
+      v.referenceModel?.label ?? (v.youcamFeature === "image-to-video" || v.youcamFeature === "image-to-video-v1" ? "Video clip" : "Reference model"),
     status: v.status,
     resultImageUrl: v.resultImageUrl ?? undefined,
-    isVideo: v.youcamFeature === "image-to-video",
+    isVideo: v.youcamFeature === "image-to-video" || v.youcamFeature === "image-to-video-v1",
     isAnalysis: isDataFeatureSlug(v.youcamFeature),
     analysisResult: v.analysisResult ?? undefined,
     errorMessage: v.errorMessage ?? undefined,
@@ -62,11 +70,15 @@ export async function startGeneration(input: StartGenerationInput): Promise<Gene
   if (input.effectId) form.set("effectId", input.effectId);
   if (input.effectParams) form.set("params", JSON.stringify(input.effectParams));
   if (input.refFile) form.set("refFile", input.refFile);
+  if (input.maskFile) form.set("maskFile", input.maskFile);
   if (input.shadeHex) form.set("shadeHex", input.shadeHex);
   if (input.prompt) form.set("prompt", input.prompt);
   if (input.resolution) form.set("resolution", input.resolution);
   if (input.durationSeconds) form.set("durationSeconds", String(input.durationSeconds));
+  if (input.videoMode) form.set("videoMode", input.videoMode);
   if (input.refImageUrl) form.set("refImageUrl", input.refImageUrl);
+  if (input.templateId) form.set("templateId", input.templateId);
+  if (input.outputCount !== undefined) form.set("outputCount", String(input.outputCount));
   input.referenceModelIds.forEach((id) => form.append("referenceModelId", id));
 
   const res = await fetch("/api/generations", { method: "POST", body: form });

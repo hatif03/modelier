@@ -3,7 +3,7 @@
 // (the real API composes an array of typed "effects", not a single flat color —
 // this wrapper exposes a simple hex-shade helper on top for the PRD's
 // "select a shade" beauty flow).
-import { createTask, getTaskStatus } from "./client";
+import { createTask, getTaskStatus, listTemplates, type SrcFileInput } from "./client";
 
 export type LipColorEffect = {
   category: "lip_color";
@@ -75,6 +75,32 @@ export type MakeupTransferResult = { url: string };
 
 export async function getMakeupTransferStatus(taskId: string) {
   return getTaskStatus<MakeupTransferResult>("mu-transfer", taskId);
+}
+
+// ---- AI Look VTO — applies a curated makeup-look template to a face (one
+// face in, one styled face out) — NOT a full outfit combiner despite the
+// endpoint's name; much closer in shape to hair.ts's template-transfer
+// effects than to a multi-garment "look". Schema confirmed against
+// https://docs.perfectcorp.com/_bundle/reference/ai_look_vto.yaml — single
+// src photo + a required template_id, single-url result.
+export async function listLookVtoTemplates() {
+  return listTemplates("look-vto");
+}
+
+export type LookVtoInput = SrcFileInput & { templateId: string };
+
+export async function createLookVtoTask(input: LookVtoInput): Promise<string> {
+  const payload: Record<string, unknown> = { template_id: input.templateId };
+  if (input.srcFileId) payload.src_file_id = input.srcFileId;
+  else if (input.srcFileUrl) payload.src_file_url = input.srcFileUrl;
+  else throw new Error("createLookVtoTask requires either srcFileId or srcFileUrl");
+  return createTask("look-vto", payload);
+}
+
+export type LookVtoResult = { url: string };
+
+export async function getLookVtoStatus(taskId: string) {
+  return getTaskStatus<LookVtoResult>("look-vto", taskId);
 }
 
 // A single lip-color effect from just a hex shade — the PRD's "select a

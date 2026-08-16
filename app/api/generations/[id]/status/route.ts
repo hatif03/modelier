@@ -5,9 +5,11 @@ import { db } from "@/lib/db";
 import { getClothesVtoStatus } from "@/lib/youcam/clothesVto";
 import { getMakeupVtoStatus } from "@/lib/youcam/makeupVto";
 import { getImageToVideoStatus } from "@/lib/youcam/imageToVideo";
+import { getVideoGeneratorStatus } from "@/lib/youcam/video";
 import { getTextToImageStatus } from "@/lib/youcam/textToImage";
 import { getJewelryVtoStatus, jewelryFeatureToCategory } from "@/lib/youcam/jewelryVto";
 import { getEffectStatus, isDataFeature } from "@/lib/youcam/effectDispatch";
+import { getGenerativePortraitStatus, generativePortraitFeatureToCategory } from "@/lib/youcam/generativePortraits";
 import { friendlyYoucamError, friendlyJewelryError } from "@/lib/youcam/friendlyError";
 import { computeHarmonyScore, computeJewelryHarmonyScore, classifyMetalTone, type Undertone } from "@/lib/colorHarmony";
 import { rehostResultFile } from "@/lib/storage";
@@ -38,14 +40,19 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     processingVariants.map(async (variant) => {
       try {
         const jewelryCategory = jewelryFeatureToCategory(variant.youcamFeature);
+        const portraitCategory = generativePortraitFeatureToCategory(variant.youcamFeature);
         const result = jewelryCategory
           ? await getJewelryVtoStatus(jewelryCategory, variant.youcamTaskId as string)
-          : variant.youcamFeature === "cloth-v4"
+          : portraitCategory
+            ? await getGenerativePortraitStatus(portraitCategory, variant.youcamTaskId as string)
+            : variant.youcamFeature === "cloth-v4"
             ? await getClothesVtoStatus(variant.youcamTaskId as string)
             : variant.youcamFeature === "makeup-vto"
               ? await getMakeupVtoStatus(variant.youcamTaskId as string)
               : variant.youcamFeature === "image-to-video"
                 ? await getImageToVideoStatus(variant.youcamTaskId as string)
+                : variant.youcamFeature === "image-to-video-v1"
+                  ? await getVideoGeneratorStatus(variant.youcamTaskId as string)
                 : variant.youcamFeature === "text-to-image/youcam"
                   ? await getTextToImageStatus(variant.youcamTaskId as string)
                   : await getEffectStatus(variant.youcamFeature, variant.youcamTaskId as string);
@@ -60,21 +67,50 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
             data: { status: "success", analysisResult: result.results ?? {} },
           });
         } else if (result.status === "success") {
-          const sourceUrl = (result.results as { url?: string } | undefined)?.url;
-          let permanentUrl = sourceUrl;
-          if (sourceUrl) {
-            try {
-              permanentUrl = await rehostResultFile(sourceUrl, `generations/${variant.id}`);
-            } catch (rehostErr) {
-              // Falls back to the ephemeral YouCam URL rather than losing the
-              // result outright — it'll still work for the next ~2 hours.
-              console.warn(`Failed to re-host result for variant ${variant.id}`, rehostErr);
+          // Most effects return a single {url}; a few (Colorize, Color
+          // Correction, and the generative-portrait flows) return several
+          // variations per task via {output:[{url},...]} — fan those out
+          // into sibling GenerationVariant rows the same way a diversity
+          // batch does, rather than only ever keeping the first one.
+          const results = result.results as { url?: string; output?: Array<{ url: string }> } | undefined;
+          const sourceUrls = results?.output?.length ? results.output.map((o) => o.url) : results?.url ? [results.url] : [];
+
+          if (sourceUrls.length === 0) {
+            await db.generationVariant.update({
+              where: { id: variant.id },
+              data: { status: "error", errorMessage: "The task succeeded but returned no result." },
+            });
+          } else {
+            const permanentUrls = await Promise.all(
+              sourceUrls.map(async (url, i) => {
+                try {
+                  return await rehostResultFile(url, `generations/${variant.id}${i > 0 ? `-${i}` : ""}`);
+                } catch (rehostErr) {
+                  // Falls back to the ephemeral YouCam URL rather than losing the
+                  // result outright — it'll still work for the next ~2 hours.
+                  console.warn(`Failed to re-host result for variant ${variant.id}`, rehostErr);
+                  return url;
+                }
+              })
+            );
+
+            await db.generationVariant.update({
+              where: { id: variant.id },
+              data: { status: "success", resultImageUrl: permanentUrls[0] },
+            });
+
+            if (permanentUrls.length > 1) {
+              await db.generationVariant.createMany({
+                data: permanentUrls.slice(1).map((url) => ({
+                  generationId: variant.generationId,
+                  referenceModelId: variant.referenceModelId,
+                  youcamFeature: variant.youcamFeature,
+                  status: "success" as const,
+                  resultImageUrl: url,
+                })),
+              });
             }
           }
-          await db.generationVariant.update({
-            where: { id: variant.id },
-            data: { status: "success", resultImageUrl: permanentUrl },
-          });
         } else {
           const rawError = result.errorMessage ?? result.error;
           await db.generationVariant.update({

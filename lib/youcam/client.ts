@@ -87,16 +87,31 @@ export function withRefFile(payload: Record<string, unknown>, input: RefFileInpu
   else throw new Error(`${fnName} requires either refFileId or refFileUrl`);
 }
 
+// A grayscale mask (white = area to affect, black = leave alone) — required
+// by the object-removal/replace-style photo-editing effects (photoEditing.ts).
+export type MskFileInput = { mskFileId?: string; mskFileUrl?: string };
+
+export function withMskFile(payload: Record<string, unknown>, input: MskFileInput, fnName: string): void {
+  if (input.mskFileId) payload.msk_file_id = input.mskFileId;
+  else if (input.mskFileUrl) payload.msk_file_url = input.mskFileUrl;
+  else throw new Error(`${fnName} requires either mskFileId or mskFileUrl`);
+}
+
 export type UploadedFile = { fileId: string };
 
-// POST /s2s/v2.0/file — a single generic endpoint shared by every feature
-// (NOT per-feature, despite what some third-party writeups imply). Returns a
-// pre-signed upload URL; the actual bytes still have to be PUT there.
+// POST /s2s/v2.0/file — a single generic endpoint shared by almost every
+// feature. One confirmed exception: AI Video Object Removal (obj-rem-vid)
+// has its own dedicated upload path (/s2s/v2.0/file/obj-rem-vid) per its
+// OpenAPI spec — pass `featurePath` for that one case; every other caller
+// omits it and gets the shared endpoint. Returns a pre-signed upload URL;
+// the actual bytes still have to be PUT there.
 export async function uploadFile(
   buffer: Buffer,
-  meta: { contentType: string; fileName: string }
+  meta: { contentType: string; fileName: string },
+  featurePath?: string
 ): Promise<UploadedFile> {
-  const json = await youcamFetch("/s2s/v2.0/file", {
+  const path = featurePath ? `/s2s/v2.0/file/${featurePath}` : "/s2s/v2.0/file";
+  const json = await youcamFetch(path, {
     method: "POST",
     body: JSON.stringify({
       files: [{ content_type: meta.contentType, file_name: meta.fileName, file_size: buffer.byteLength }],

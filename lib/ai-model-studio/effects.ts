@@ -36,9 +36,22 @@ export type EffectTemplateControl = {
   feature: string;
 };
 
-export type EffectControl = EffectSliderControl | EffectSelectControl | EffectTemplateControl;
+// A free-text prompt (background description, replacement-object
+// description). Most prompt-driven photo-editing endpoints fall back to a
+// sensible default when left blank, so `required` defaults to false — AI
+// Replace is the one exception, since its masked area has nothing sensible
+// to fall back to without a description of what should fill it.
+export type EffectTextControl = {
+  type: "text";
+  key: string;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+};
 
-export type EffectCategory = "retouch" | "body" | "analysis" | "hair" | "accessories" | "nails";
+export type EffectControl = EffectSliderControl | EffectSelectControl | EffectTemplateControl | EffectTextControl;
+
+export type EffectCategory = "retouch" | "body" | "analysis" | "hair" | "accessories" | "nails" | "photo_editing";
 
 export type EffectDefinition = {
   id: string;
@@ -50,6 +63,8 @@ export type EffectDefinition = {
   controls: EffectControl[];
   /** Set when the effect needs a second photo alongside the main source photo — a face to swap in, a lens-color swatch, a makeup look to copy. */
   refPhotoLabel?: string;
+  /** Set when the effect needs a painted grayscale mask alongside the main source photo (see MaskPainter.tsx) — object removal / replace. */
+  maskLabel?: string;
 };
 
 export const EFFECT_CATEGORIES: { id: EffectCategory; label: string }[] = [
@@ -58,37 +73,60 @@ export const EFFECT_CATEGORIES: { id: EffectCategory; label: string }[] = [
   { id: "hair", label: "Hair & Beard" },
   { id: "accessories", label: "Accessories" },
   { id: "nails", label: "Nails" },
-  { id: "analysis", label: "Skin & Face Analysis" },
+  { id: "photo_editing", label: "Photo Editing" },
+  { id: "analysis", label: "Skin, Face & Hair Analysis" },
 ];
 
 // Mirrors lib/youcam/fashionAccessories.ts's STYLE_ACCESSORY_PRESETS — duplicated
 // rather than imported for the same reason as DATA_FEATURE_SLUGS below (this
 // client-facing module never pulls in server-only YouCam wrapper files).
+// Real, genuinely PER-CATEGORY enum values, confirmed against the OpenAPI
+// YAML bundles — an earlier pass here wrongly assumed all four categories
+// share one enum (a real, pre-existing bug; every hat/bag/scarf call failed
+// with InvalidParameters until each category's own real values were used).
 const ACCESSORY_STYLE_OPTIONS: Record<"shoes" | "hat" | "bag" | "scarf", { value: string; label: string }[]> = {
   shoes: [
-    { value: "classic", label: "Classic" },
-    { value: "sporty", label: "Sporty" },
-    { value: "elegant", label: "Elegant" },
-    { value: "streetwear", label: "Streetwear" },
-    { value: "minimalist", label: "Minimalist" },
     { value: "random", label: "Surprise me" },
+    { value: "style_minimalist", label: "Minimalist" },
+    { value: "style_bohemian", label: "Bohemian" },
+    { value: "style_cottagecore", label: "Cottagecore" },
+    { value: "style_french_elegance", label: "French elegance" },
+    { value: "style_retro_fashion", label: "Retro fashion" },
   ],
-  scarf: [
-    { value: "french_elegance", label: "French elegance" },
-    { value: "light_luxury", label: "Light luxury" },
-    { value: "cottagecore", label: "Cottagecore" },
-    { value: "modern_chic", label: "Modern chic" },
-    { value: "bohemian", label: "Bohemian" },
+  hat: [
     { value: "random", label: "Surprise me" },
+    { value: "style_sporty_casual", label: "Sporty casual" },
+    { value: "style_urban_fashion", label: "Urban fashion" },
+    { value: "style_vacation_casual", label: "Vacation casual" },
+    { value: "style_warm_cozy", label: "Warm & cozy" },
+    { value: "style_bohemian", label: "Bohemian" },
   ],
   bag: [
-    { value: "parisian_chic", label: "Parisian chic" },
-    { value: "urban_chic", label: "Urban chic" },
-    { value: "mediterranean_chic", label: "Mediterranean chic" },
-    { value: "art_deco_style", label: "Art deco" },
     { value: "random", label: "Surprise me" },
+    { value: "style_parisian_chic", label: "Parisian chic" },
+    { value: "style_urban_chic", label: "Urban chic" },
+    { value: "style_mediterranean_chic", label: "Mediterranean chic" },
+    { value: "style_art_deco_style", label: "Art deco" },
   ],
-  hat: [{ value: "random", label: "Surprise me" }],
+  scarf: [
+    { value: "random", label: "Surprise me" },
+    { value: "style_french_elegance", label: "French elegance" },
+    { value: "style_light_luxury", label: "Light luxury" },
+    { value: "style_cottagecore", label: "Cottagecore" },
+    { value: "style_modern_chic", label: "Modern chic" },
+    { value: "style_bohemian", label: "Bohemian" },
+  ],
+};
+
+const ACCESSORY_GENDER_CONTROL: EffectSelectControl = {
+  type: "select",
+  key: "gender",
+  label: "Fit",
+  default: "female",
+  options: [
+    { value: "female", label: "Women's" },
+    { value: "male", label: "Men's" },
+  ],
 };
 
 export const EFFECTS: EffectDefinition[] = [
@@ -208,6 +246,14 @@ export const EFFECTS: EffectDefinition[] = [
     kind: "image",
     controls: [],
     refPhotoLabel: "Makeup look to copy",
+  },
+  {
+    id: "look_vto",
+    category: "retouch",
+    label: "Look VTO",
+    description: "Tries on a curated makeup look from a template pack.",
+    kind: "image",
+    controls: [{ type: "template", key: "templateId", label: "Look", feature: "look-vto" }],
   },
   {
     id: "body_reshape",
@@ -337,17 +383,12 @@ export const EFFECTS: EffectDefinition[] = [
     kind: "image",
     controls: [
       { type: "select", key: "style", label: "Style", default: "random", options: ACCESSORY_STYLE_OPTIONS.shoes },
-      {
-        type: "select",
-        key: "gender",
-        label: "Fit",
-        default: "female",
-        options: [
-          { value: "female", label: "Women's" },
-          { value: "male", label: "Men's" },
-        ],
-      },
+      ACCESSORY_GENDER_CONTROL,
     ],
+    // A reference product photo is REQUIRED by the real API (a pre-existing
+    // gap — this field was missing here entirely, so the UI never let a user
+    // supply it, and every real call failed with InvalidParameters).
+    refPhotoLabel: "Shoe product photo",
   },
   {
     id: "hat",
@@ -355,7 +396,11 @@ export const EFFECTS: EffectDefinition[] = [
     label: "Hat",
     description: "Tries on a hat.",
     kind: "image",
-    controls: [{ type: "select", key: "style", label: "Style", default: "random", options: ACCESSORY_STYLE_OPTIONS.hat }],
+    // `gender` is required for every accessory category, not just shoes — a
+    // real, pre-existing gap (missing here entirely) caught only by actually
+    // running this effect live.
+    controls: [{ type: "select", key: "style", label: "Style", default: "random", options: ACCESSORY_STYLE_OPTIONS.hat }, ACCESSORY_GENDER_CONTROL],
+    refPhotoLabel: "Hat product photo",
   },
   {
     id: "bag",
@@ -363,7 +408,8 @@ export const EFFECTS: EffectDefinition[] = [
     label: "Bag",
     description: "Tries on a bag in the chosen style.",
     kind: "image",
-    controls: [{ type: "select", key: "style", label: "Style", default: "random", options: ACCESSORY_STYLE_OPTIONS.bag }],
+    controls: [{ type: "select", key: "style", label: "Style", default: "random", options: ACCESSORY_STYLE_OPTIONS.bag }, ACCESSORY_GENDER_CONTROL],
+    refPhotoLabel: "Bag product photo",
   },
   {
     id: "scarf",
@@ -371,7 +417,8 @@ export const EFFECTS: EffectDefinition[] = [
     label: "Scarf",
     description: "Tries on a scarf in the chosen style.",
     kind: "image",
-    controls: [{ type: "select", key: "style", label: "Style", default: "random", options: ACCESSORY_STYLE_OPTIONS.scarf }],
+    controls: [{ type: "select", key: "style", label: "Style", default: "random", options: ACCESSORY_STYLE_OPTIONS.scarf }, ACCESSORY_GENDER_CONTROL],
+    refPhotoLabel: "Scarf product photo",
   },
   {
     id: "nail_vto",
@@ -390,11 +437,114 @@ export const EFFECTS: EffectDefinition[] = [
           { value: "press_on_nails", label: "Press-on" },
         ],
       },
+      // Required by the real API (a pre-existing gap — color was missing
+      // entirely, so nail_vto never actually worked live).
+      { type: "text", key: "color", label: "Polish color (hex)", placeholder: "#C2185B" },
       { type: "slider", key: "reflection", label: "Shine", min: 0, max: 100, step: 5, default: 50, scale: 100 },
       { type: "slider", key: "shimmer", label: "Shimmer", min: 0, max: 100, step: 5, default: 0, scale: 100 },
       { type: "slider", key: "transparency", label: "Sheerness", min: 0, max: 100, step: 5, default: 20, scale: 100 },
       { type: "slider", key: "contrast", label: "Contrast", min: 0, max: 100, step: 5, default: 50, scale: 100 },
       { type: "slider", key: "roughness", label: "Matte-ness", min: 0, max: 100, step: 5, default: 30, scale: 100 },
+    ],
+  },
+  {
+    id: "photo_enhance",
+    category: "photo_editing",
+    label: "Enhance",
+    description: "Upscales and cleans up a photo — sharper detail, less noise.",
+    kind: "image",
+    controls: [],
+  },
+  {
+    id: "photo_lighting",
+    category: "photo_editing",
+    label: "Lighting",
+    description: "Relights a photo for a more polished, professional look.",
+    kind: "image",
+    controls: [],
+  },
+  {
+    id: "background_removal",
+    category: "photo_editing",
+    label: "Background Removal",
+    description: "Cuts the subject out onto a transparent background — clean e-commerce isolation.",
+    kind: "image",
+    controls: [],
+  },
+  {
+    id: "background_blur",
+    category: "photo_editing",
+    label: "Background Blur",
+    description: "Softens the background to draw focus to the subject.",
+    kind: "image",
+    controls: [{ type: "slider", key: "intensity", label: "Blur strength", min: 0, max: 100, step: 5, default: 60 }],
+  },
+  {
+    id: "background_change",
+    category: "photo_editing",
+    label: "Background Change",
+    description: "Replaces the background with one described in a short prompt.",
+    kind: "image",
+    controls: [
+      { type: "text", key: "prompt", label: "Describe the new background", placeholder: "A sunny beach with palm trees" },
+    ],
+  },
+  {
+    id: "photo_colorize",
+    category: "photo_editing",
+    label: "Colorize",
+    description: "Adds realistic color to a black-and-white or faded photo — returns a few color-tone variations.",
+    kind: "image",
+    controls: [],
+  },
+  {
+    id: "color_correction",
+    category: "photo_editing",
+    label: "Color Correction",
+    description: "Auto-adjusts saturation, temperature, and exposure — returns a few graded variations.",
+    kind: "image",
+    controls: [],
+  },
+  {
+    id: "object_removal_pro",
+    category: "photo_editing",
+    label: "Object Removal",
+    description: "Paint over something in the photo to remove it and fill the area automatically.",
+    kind: "image",
+    controls: [],
+    maskLabel: "Paint over the object to remove",
+  },
+  {
+    id: "ai_replace",
+    category: "photo_editing",
+    label: "Replace",
+    description: "Paint over something in the photo and describe what should replace it.",
+    kind: "image",
+    controls: [
+      { type: "text", key: "prompt", label: "What should appear there?", placeholder: "a cute cat", required: true },
+    ],
+    maskLabel: "Paint over the area to replace",
+  },
+  {
+    id: "image_extender",
+    category: "photo_editing",
+    label: "Image Extender",
+    description: "Expands the canvas and fills in the new area — reframe a square shot into a banner or story crop.",
+    kind: "image",
+    controls: [
+      {
+        type: "select",
+        key: "aspectRatio",
+        label: "New aspect ratio",
+        default: "4:5",
+        options: [
+          { value: "1:1", label: "Square (1:1)" },
+          { value: "4:5", label: "Portrait (4:5)" },
+          { value: "9:16", label: "Story (9:16)" },
+          { value: "16:9", label: "Wide (16:9)" },
+          { value: "4:1", label: "Banner (4:1)" },
+        ],
+      },
     ],
   },
   {
@@ -429,12 +579,53 @@ export const EFFECTS: EffectDefinition[] = [
     kind: "data",
     controls: [],
   },
+  {
+    id: "hair_density",
+    category: "analysis",
+    label: "Hair Density",
+    description: "Scores how dense the hair looks — a report, not an edited photo.",
+    kind: "data",
+    controls: [],
+  },
+  {
+    id: "hair_length",
+    category: "analysis",
+    label: "Hair Length",
+    description: "Classifies hair length — a report, not an edited photo.",
+    kind: "data",
+    controls: [],
+  },
+  {
+    id: "hair_type",
+    category: "analysis",
+    label: "Hair Type",
+    description: "Classifies curl pattern from the same photo submitted at all three required angles — a report, not an edited photo.",
+    kind: "data",
+    controls: [],
+  },
+  {
+    id: "hair_frizziness",
+    category: "analysis",
+    label: "Hair Frizziness",
+    description: "Scores frizziness from the same photo submitted at all three required angles — a report, not an edited photo.",
+    kind: "data",
+    controls: [],
+  },
 ];
 
 // Mirrors lib/youcam/effectDispatch.ts's DATA_FEATURE_SLUGS — duplicated
 // rather than imported so this client-facing module never pulls in the
 // server-only YouCam wrapper files just to check a feature string.
-const DATA_FEATURE_SLUGS = new Set(["skin-analysis", "skin-tone-analysis", "fitzpatrick-scale-analyzer", "face-attr-analysis"]);
+const DATA_FEATURE_SLUGS = new Set([
+  "skin-analysis",
+  "skin-tone-analysis",
+  "fitzpatrick-scale-analyzer",
+  "face-attr-analysis",
+  "hair-density-detection",
+  "hair-length-detection",
+  "hair-type-detection",
+  "hair-frizziness-detection",
+]);
 
 export function isDataFeatureSlug(feature: string): boolean {
   return DATA_FEATURE_SLUGS.has(feature);
@@ -444,11 +635,14 @@ export function getEffect(id: string): EffectDefinition | undefined {
   return EFFECTS.find((e) => e.id === id);
 }
 
-// Template controls have no `default` — nothing is pre-applied until the
-// user picks a swatch (see EffectTemplateControl above), so they're left
-// unset here rather than defaulted to undefined-as-a-string.
+// Template and text controls have no `default` — nothing is pre-applied
+// until the user picks a swatch (EffectTemplateControl) or types something
+// (EffectTextControl), so they're left unset here rather than defaulted to
+// undefined-as-a-string.
 export function defaultParamsFor(effect: EffectDefinition): Record<string, number | string> {
-  return Object.fromEntries(effect.controls.filter((c) => c.type !== "template").map((c) => [c.key, c.default]));
+  return Object.fromEntries(
+    effect.controls.filter((c): c is EffectSliderControl | EffectSelectControl => c.type !== "template" && c.type !== "text").map((c) => [c.key, c.default])
+  );
 }
 
 // Converts UI slider/select values into the units each wrapper function
@@ -470,8 +664,14 @@ export function paramsForSubmission(effect: EffectDefinition, values: Record<str
 export function isEffectReady(
   effect: EffectDefinition,
   values: Record<string, number | string>,
-  hasRefPhoto: boolean
+  hasRefPhoto: boolean,
+  hasMask: boolean = true
 ): boolean {
   if (effect.refPhotoLabel && !hasRefPhoto) return false;
-  return effect.controls.every((c) => c.type !== "template" || Boolean(values[c.key]));
+  if (effect.maskLabel && !hasMask) return false;
+  return effect.controls.every((c) => {
+    if (c.type === "template") return Boolean(values[c.key]);
+    if (c.type === "text" && c.required) return Boolean(String(values[c.key] ?? "").trim());
+    return true;
+  });
 }

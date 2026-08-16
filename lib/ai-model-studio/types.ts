@@ -36,7 +36,21 @@ export const JEWELRY_CATEGORIES: { id: JewelryCategory; label: string }[] = [
 // (see lib/ai-model-studio/effects.ts for the registry of specific effects).
 // "backdrop" generates a scene/background from a prompt (see
 // lib/ai-model-studio/backdrops.ts) — no source photo required.
-export type AIStudioFlow = "apparel_vto" | "makeup_vto" | "jewelry_vto" | "image_to_video" | "effect" | "backdrop";
+// "avatar_generator"/"headshot_generator"/"studio_generator" are template-
+// pack-driven full-portrait generators (a selfie in, several stylized
+// portraits out) — see lib/youcam/generativePortraits.ts. Kept as their own
+// flows rather than folded into "effect" since they replace the whole photo
+// and can return multiple outputs per call, unlike any single "effect".
+export type AIStudioFlow =
+  | "apparel_vto"
+  | "makeup_vto"
+  | "jewelry_vto"
+  | "image_to_video"
+  | "effect"
+  | "backdrop"
+  | "avatar_generator"
+  | "headshot_generator"
+  | "studio_generator";
 
 export type VariantStatus = "processing" | "success" | "error";
 

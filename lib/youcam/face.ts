@@ -6,6 +6,34 @@
 import { createTask, getTaskStatus, createTaskWithPreprocess, withSrcFile, type SrcFileInput } from "./client";
 
 // ---- Face analyzer — a DATA result (face shape, ratios, feature metrics).
+// The OpenAPI YAML bundle's own documented `BasicRunFaceAttrTask` schema
+// (a nested request_id/payload.file_sets/payload.actions shape) turned out
+// to NOT be what the live endpoint actually accepts — sending that exact
+// shape always failed with InvalidParameters. Confirmed by direct
+// experimentation against the live API (the error message for a
+// deliberately-wrong request named the fields it actually wanted): the real,
+// working shape is flat — {src_file_id or src_file_url, features: [...]}` —
+// the same simple pattern every other single-photo effect in this codebase
+// uses, not the elaborate nested one the docs describe.
+export type FaceAttrFeature =
+  | "eyeShape" | "eyeSize" | "eyeAngle" | "eyeDistance" | "eyelid"
+  | "eyebrowShape" | "eyebrowThickness" | "eyebrowDistance" | "eyebrowShortness"
+  | "cheekbones" | "faceShape" | "lipShape" | "noseWidth" | "noseLength"
+  | "age" | "gender" | "eyeColor" | "lipColor" | "eyebrowColor" | "hairColor"
+  | "horizontalThird" | "verticalFifth" | "faceAspectRatio" | "eyeAspectRatio"
+  | "eyebrowPosition" | "eyebrowArch" | "eyeHeightToEyebrowDistance"
+  | "noseAspectRatio" | "noseWidthToMouthWidth" | "noseToLipToChin" | "upperLipToLowerLip";
+
+export const ALL_FACE_ATTR_FEATURES: FaceAttrFeature[] = [
+  "eyeShape", "eyeSize", "eyeAngle", "eyeDistance", "eyelid",
+  "eyebrowShape", "eyebrowThickness", "eyebrowDistance", "eyebrowShortness",
+  "cheekbones", "faceShape", "lipShape", "noseWidth", "noseLength",
+  "age", "gender", "eyeColor", "lipColor", "eyebrowColor", "hairColor",
+  "horizontalThird", "verticalFifth", "faceAspectRatio", "eyeAspectRatio",
+  "eyebrowPosition", "eyebrowArch", "eyeHeightToEyebrowDistance",
+  "noseAspectRatio", "noseWidthToMouthWidth", "noseToLipToChin", "upperLipToLowerLip",
+];
+
 export type FaceAnalyzerResult = {
   faceShape?: string;
   age?: number;
@@ -13,8 +41,12 @@ export type FaceAnalyzerResult = {
   [metric: string]: unknown;
 };
 
-export async function createFaceAnalyzerTask(input: SrcFileInput): Promise<string> {
-  const payload: Record<string, unknown> = {};
+// Defaults to a small, broadly-useful subset rather than every possible
+// feature.
+const DEFAULT_FACE_ATTR_FEATURES: FaceAttrFeature[] = ["faceShape", "age", "gender", "eyeColor", "hairColor"];
+
+export async function createFaceAnalyzerTask(input: SrcFileInput & { features?: FaceAttrFeature[] }): Promise<string> {
+  const payload: Record<string, unknown> = { features: input.features?.length ? input.features : DEFAULT_FACE_ATTR_FEATURES };
   withSrcFile(payload, input, "createFaceAnalyzerTask");
   return createTask("face-attr-analysis", payload);
 }
@@ -116,7 +148,13 @@ export async function getFaceReshapeStatus(taskId: string) {
   return getTaskStatus<FaceReshapeResult>("face-reshape", taskId);
 }
 
-// ---- Face swap — preprocess (face boxes for src + ref) + main (face-mapping payload).
+// ---- Face swap — preprocess (face boxes) + main. Real main-task shape is
+// flat (`ref_file_ids`/`ref_file_urls` PLURAL arrays + a top-level
+// `face_mapping` array of {index, position}) — the previous `file_sets`/
+// `actions` wrapper here was a real, pre-existing bug (that shape belongs to
+// face-attr-analysis, not face-swap; every live call failed with
+// InvalidParameters). Confirmed against https://docs.perfectcorp.com/_bundle/
+// reference/ai_face_swap.yaml.
 export type FaceSwapInput = {
   srcFileId?: string;
   srcFileUrl?: string;
@@ -129,16 +167,15 @@ export type FaceSwapPrepResult = { faces?: Array<{ index: number }> };
 export async function createFaceSwapTask(input: FaceSwapInput): Promise<string> {
   const prepPayload: Record<string, unknown> = {};
   withSrcFile(prepPayload, input, "createFaceSwapTask");
-  if (input.refFileId) prepPayload.ref_file_id = input.refFileId;
-  else if (input.refFileUrl) prepPayload.ref_file_url = input.refFileUrl;
-  else throw new Error("createFaceSwapTask requires either refFileId or refFileUrl");
 
-  return createTaskWithPreprocess<FaceSwapPrepResult>("face-swap", prepPayload, () => ({
-    payload: {
-      file_sets: { src_ids: [input.srcFileId ?? input.srcFileUrl], ref_ids: [input.refFileId ?? input.refFileUrl] },
-      actions: [{ params: { face_mapping: [{ position: 0, index: 0 }] } }],
-    },
-  }));
+  return createTaskWithPreprocess<FaceSwapPrepResult>("face-swap", prepPayload, () => {
+    const mainPayload: Record<string, unknown> = { face_mapping: [{ index: 0, position: 0 }] };
+    withSrcFile(mainPayload, input, "createFaceSwapTask");
+    if (input.refFileId) mainPayload.ref_file_ids = [input.refFileId];
+    else if (input.refFileUrl) mainPayload.ref_file_urls = [input.refFileUrl];
+    else throw new Error("createFaceSwapTask requires either refFileId or refFileUrl");
+    return mainPayload;
+  });
 }
 
 export type FaceSwapResult = { url: string };

@@ -6,7 +6,21 @@ import { listTemplates } from "@/lib/youcam/client";
 // Feature slugs an EffectTemplateControl is allowed to request — an allowlist
 // rather than forwarding whatever ?feature= a client sends straight to the
 // YouCam API, since this route has no other validation on that value.
-const ALLOWED_FEATURES = new Set(["hair-transfer", "hair-ext", "hair-vol", "hair-bang", "hair-curl", "beard-style", "fabric"]);
+const ALLOWED_FEATURES = new Set([
+  "hair-transfer",
+  "hair-ext",
+  "hair-vol",
+  "hair-bang",
+  "hair-curl",
+  "beard-style",
+  "fabric",
+  "look-vto",
+  "ai-avatar",
+  "headshot",
+  "ai-studio",
+  "video-trans",
+  "image-to-video",
+]);
 
 export async function GET(req: Request) {
   const session = await auth();
