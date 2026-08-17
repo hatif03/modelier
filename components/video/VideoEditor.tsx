@@ -45,9 +45,11 @@ const VideoEditor = ({ project }: { project: VideoProjectData }) => {
   const dirtyRef = useRef(false);
 
   // A clip generated in AI Model Studio's image_to_video flow arrives here as a
-  // remote URL (see AIModelStudioPanel.tsx's "Send to Video Studio" action) — fetch
-  // it once, then treat it exactly like any other locally imported media from then
-  // on (OPFS-persisted, no re-fetching), same "no uploads" model as a file import.
+  // remote URL (see AIModelStudioPanel.tsx's "Send to Video Studio" action) —
+  // already a permanent Supabase-hosted URL (rehostResultFile ran when the
+  // generation first succeeded), so it's kept as-is rather than replaced with a
+  // session-scoped blob: URL. Still cached to OPFS for a fast local path in this
+  // browser, same "no re-fetching" model as a raw file import.
   useEffect(() => {
     const importUrl = searchParams.get("importUrl");
     if (!importUrl) return;
@@ -61,7 +63,7 @@ const VideoEditor = ({ project }: { project: VideoProjectData }) => {
         const id = uuidv4();
         const probed = await probeMedia(file);
         await saveMediaFile(id, file);
-        const asset: MediaAsset = { id, url: URL.createObjectURL(file), ...probed };
+        const asset: MediaAsset = { id, url: importUrl, ...probed };
         storeRef.current.getState().addMedia(asset);
         storeRef.current.getState().appendMediaClip(id);
         setStatusMessage("Imported the clip from AI Model Studio.");
@@ -176,7 +178,7 @@ const VideoEditor = ({ project }: { project: VideoProjectData }) => {
                 <TabsTrigger value="ai">AI</TabsTrigger>
               </TabsList>
               <TabsContent value="media" className="flex-1 overflow-y-auto">
-                <MediaLibrary />
+                <MediaLibrary projectId={project.id} />
               </TabsContent>
               <TabsContent value="inspector" className="flex-1 overflow-y-auto">
                 <Inspector />

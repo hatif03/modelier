@@ -52,6 +52,16 @@ Blush Riot (built on Modelier) gives a solo jewelry or apparel seller a professi
 
 https://github.com/hatif03/modelier
 
+## Demo video
+
+https://youtu.be/1-rzN3CNLnA
+
+A 3-minute walkthrough recorded live against the real demo account (see
+README's "Demo account" section) — Jewelry CAD Studio, AI Model Studio (with
+the specific YouCam endpoints named on camera), the canvas template drop-in,
+and Video Studio, in that order. Shot-by-shot script and the reasoning behind
+each beat: `DEMO_SCRIPT.md`.
+
 ## A moment the API surprised us
 
 The Photo Enhance endpoint rejecting *every single call* until we noticed the docs never mentioned `scale` (1/2/4×) was required at all — it's not in the "required" list judges would see skimming the reference page, only in the full request schema. Small omission, total blocker, and a good reminder that "read the docs" and "call the API" are different levels of verification.

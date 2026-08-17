@@ -9,7 +9,7 @@ import { probeMedia } from "@/lib/video-engine/probe";
 import { saveMediaFile, isStorageSupported } from "@/lib/video-engine/storage";
 import type { MediaAsset } from "@/lib/video-engine/types";
 
-const MediaLibrary = () => {
+const MediaLibrary = ({ projectId }: { projectId: string }) => {
   const storeApi = useTimelineStoreApi();
   // Select the raw map (a stable reference between renders) and derive the list in
   // the component body — a selector that allocates a new array every call (e.g.
@@ -27,7 +27,25 @@ const MediaLibrary = () => {
         const id = uuidv4();
         const probed = await probeMedia(file);
         await saveMediaFile(id, file);
-        const asset: MediaAsset = { id, url: URL.createObjectURL(file), ...probed };
+
+        // Re-host to Supabase Storage for a permanent, cross-device URL — an
+        // OPFS-only blob: URL only ever works back in the exact browser that
+        // imported it, which breaks the moment anyone else (a judge on a
+        // shared demo account, or the same person on a different device)
+        // opens this project. Fall back to the session-local blob if the
+        // upload fails, so import still works offline/without a hiccup.
+        let url = URL.createObjectURL(file);
+        try {
+          const form = new FormData();
+          form.set("file", file);
+          form.set("mediaId", id);
+          const res = await fetch(`/api/video-projects/${projectId}/media`, { method: "POST", body: form });
+          if (res.ok) url = (await res.json()).url;
+        } catch {
+          // Keep the local blob: URL fallback set above.
+        }
+
+        const asset: MediaAsset = { id, url, ...probed };
         storeApi.getState().addMedia(asset);
       } catch (err) {
         console.error("Failed to import media", err);
