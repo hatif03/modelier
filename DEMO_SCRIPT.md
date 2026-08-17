@@ -1,88 +1,141 @@
 # Modelier — Demo Video Script
 
-Target runtime: **2:15–2:30** (PRD requires 1–3 minutes). Recorded against the real `md.hatifosmani15@gmail.com` account, seeded with a fictional streetwear brand ("Ashfield Supply Co.") so every screen shows genuine, already-generated content — no placeholders, no mockups.
+Target runtime: **3:00, hard cap.** Everything a judge needs to evaluate the
+submission is shown by the 3:00 mark — nothing essential is held back for
+later. If you choose to keep recording past it for a director's-cut version,
+that's bonus material only; judges are never required to watch past 3:00 to
+have seen the whole story.
 
-Read each "SAY" line as a guide, not a script to recite word-for-word — say it in your own words, just hit the same points.
+Recorded live against the real `md.hatifosmani15@gmail.com` account (see
+README's "Demo account" section), seeded with a fictional fine-jewelry/
+ready-to-wear brand, **Blush Riot — The Undertone Edit**, so every screen
+shows genuine, already-generated content — no placeholders, no mockups, no
+slides standing in for the product.
 
----
+**Filmed on the actual device Modelier is built for: a desktop/laptop browser
+(Chrome recommended).** This isn't a mobile app — the canvas editor, the 3D
+Jewelry CAD viewport, and the WebCodecs video timeline are all real-time,
+pointer-and-keyboard, multi-panel tools designed for a real work session at a
+desk, the same way Figma or Premiere are. The footage below should be a
+straight screen recording of the live local app in a real browser window,
+never a phone recording of a screen or a static screenshot deck — that's the
+proof this is a working product, not a mockup.
 
-## 0:00–0:15 — Cold open: the problem
-
-**SHOW:** Nothing yet, or a static slide/title card with the Modelier name.
-
-**SAY:**
-"If you sell fashion or beauty products, you need on-model photos constantly — for Instagram, for your listings, for ads. Tools like Botika or Pebblely will generate that photo for you. But then what? You still have to open Canva, rebuild the post around it, and hope your fonts and colors still match. Two tools, two subscriptions, one job."
-
----
-
-## 0:15–0:35 — The old way, shown on camera
-
-**SHOW:** Quickly demonstrate (or describe over a quick cut) the two-tool workflow: a product photo → a generic AI photo-generator-style result → then having to separately paste that into a design tool and manually re-align text/colors. This is the PRD's explicitly required "side-by-side" comparison — don't skip it, it's a named judging point.
-
-**SAY:**
-"That's the old way — generate somewhere, then rebuild everything by hand somewhere else, and hope it still looks on-brand. Here's the one-tool version."
-
----
-
-## 0:35–0:55 — The dashboard: this is a real, used tool
-
-**SHOW:** Land on the Dashboard (`/`). Point out the format picker (Instagram Post, Pinterest Pin, Product Listing, etc.) and the "Continue designing" row — four named, real projects: **"Hoodie Launch — IG Post," "Tee Sale Announcement," "Lip Color — Shop the Look Pin," "Hoodie Listing + Video Ad."**
-
-**SAY:**
-"This is Modelier — a design canvas, Canva-style, built specifically for small fashion and beauty brands. Every one of these projects was built start-to-finish inside the tool, for a real brand I set up: Ashfield Supply Co."
+Read each "SAY" line as a guide, not a script to recite word-for-word — say
+it in your own words, just hit the same points.
 
 ---
 
-## 0:55–1:25 — Apparel VTO + diversity batch + color-harmony (the core P0 flow)
+## 0:00–0:12 — Cold open: the problem
 
-**SHOW:** Open **"Hoodie Launch — IG Post."** Point out the Brand Kit tab briefly (brand name, colors, fonts already set). Then go to the AI Model tab → Apparel flow. Show the uploaded hoodie product photo and the "Recent results" strip with all four diversity-batch renders (four different body types/skin tones from one upload). Click into one, point at the color-harmony note if visible ("this piece pairs strongly with Model A's warm undertone...").
+**SHOW:** The real Dashboard (`/`), already logged in, full project grid
+visible ("18 designs · 14 created this week").
 
 **SAY:**
-"One product photo — this plain hoodie — goes in. One action generates it on four different body types and skin tones at once, using YouCam's **AI Clothes Virtual Try-On**. And it's not just four random photos: this note here comes from YouCam's **AI Skin Analysis**, comparing the garment's actual color against each model's detected undertone, and flagging the strongest match. That's Skin AI and Apparel VTO making one creative decision together, not two separate buttons."
+"A solo jewelry or apparel seller can't afford what a real product photoshoot
+costs — one day with a photographer runs $1,000 to $5,000, a full campaign
+with models and retouching runs $14,000 to $22,000. This is Modelier: three
+studios in one dashboard that replace that entire pipeline, and I built a
+real brand's worth of content in it to prove it."
 
 ---
 
-## 1:25–1:45 — Native template drop-in (the actual differentiation)
+## 0:12–0:45 — Jewelry CAD Studio: real parametric 3D, not a mockup
 
-**SHOW:** Switch to **"Tee Sale Announcement."** Show the "SALE / 20% OFF EVERYTHING" template with the on-model tee render already sitting inside the template's photo placeholder — full brand type treatment around it, not a bare photo.
+**SHOW:** Open a jewelry design (e.g. the Undertone Ring or the Riot Chain
+Necklace). Drag a slider (band width, chain length) live and let the judges
+watch the 3D model actually rebuild in the viewport. Point at **Export STL** /
+**Export STEP**.
 
 **SAY:**
-"And here's the part the single-purpose photo generators don't do: that render isn't a flat final image I have to import somewhere else. It dropped straight into this template's placeholder, at the right size, sitting under my brand's own headline and colors. It's a normal, editable layer — I can resize it, swap it, move it — like anything else on this canvas."
+"This is a real parametric CAD kernel — Replicad, running OpenCASCADE
+compiled to WebAssembly, in a Web Worker — not a 3D viewer for a pre-made
+model. Every slider rebuilds real solid geometry live, and it exports
+manufacturing-ready STL and STEP files a jeweler could actually send to a
+caster."
 
 ---
 
-## 1:45–2:00 — Beauty flow, same pattern
+## 0:45–1:45 — AI Model Studio: the YouCam APIs, named
 
-**SHOW:** Quick cut to **"Lip Color — Shop the Look Pin"** — the Pinterest Pin template with a beauty/lip-color render dropped into its placeholder.
+**SHOW:** Open the Blush Riot apparel project. AI Model Studio panel → Apparel
+flow → upload a garment flat-lay → generate the 4-model diversity batch →
+click into one result and point at its color-harmony note. Then a fast cut
+through 2–3 more panels: Beauty/makeup VTO, Face & Hair analysis, and one
+Photo Editing tool (e.g. Background Removal or Image Extender) run against a
+real result.
 
 **SAY:**
-"Same exact flow for beauty — YouCam's **AI Makeup Virtual Try-On** — dropped into a Pinterest-ready template in one motion."
+"One garment photo, one click, generates real on-model renders across four
+different body types and skin tones at once — that's YouCam's **AI Clothes
+Virtual Try-On**. This note comes from a real **AI Skin Tone Analysis** call,
+matching the garment's color against each model's detected undertone. Same
+pattern for beauty, with **AI Makeup Virtual Try-On**. And underneath all of
+that sits a **Face Analyzer**, **Fitzpatrick Skin Type**, and hair-attribute
+detection, plus a full photo-editing suite — background removal, object
+removal, image extending, enhance — all real YouCam endpoints, all wired into
+one dashboard instead of a dozen separate tools."
 
 ---
 
-## 2:00–2:20 — Bonus: video generation (the feature beyond the original scope)
+## 1:45–2:15 — Native template drop-in (the actual differentiation)
 
-**SHOW:** Open **"Hoodie Listing + Video Ad."** Show the merchandised product listing, then the Video tab — the same hoodie photo, the motion prompt, and the finished, playable video clip with its download link.
+**SHOW:** Open a finished Blush Riot canvas Project (e.g. the Jewelry
+Spotlight Instagram post) — the generated render already sitting inside the
+template's placeholder, real brand type and colors around it. Click the
+image layer to show it's a normal, editable object.
 
 **SAY:**
-"We didn't stop at photos. Using YouCam's **Image-to-Video** API, the same product photo becomes a short video ad — right from inside the same tool, no third product, no extra export."
+"Here's what a standalone photo generator doesn't do: that render didn't need
+exporting anywhere. It dropped straight into this template's placeholder, on
+brand, as a normal editable layer I can resize or swap — same canvas, same
+tool, no second app."
 
 ---
 
-## 2:20–2:30 — Close: why this matters, and the ethics point
+## 2:15–2:45 — Video Studio: the same photo becomes a video ad
 
-**SHOW:** Back to the Dashboard, or a final wide shot of any finished project.
+**SHOW:** Open the Hero Reel video project. Show the timeline with three real
+clips in place, hit Play so the judges see actual footage moving in the
+preview, then point at the AI panel's video effects (Enhance, Style transfer,
+Face swap, Background replace).
 
 **SAY:**
-"Every reference model in this tool is fully AI-synthetic — never a real person's photo — so brands using this commercially never have a likeness or consent problem. Botika and Pebblely will generate you a photo. Modelier is the tool that turns that photo into the finished, on-brand post, ad, or listing — in one place, in one flow."
+"The same still becomes motion through YouCam's **Image-to-Video** API, and
+from there it's a full browser-based timeline editor — WebCodecs, no upload
+to a server to render — with auto-assembly, captions, and now video
+enhancement, face swap, background replace, and style transfer, all running
+against real footage, right here."
+
+---
+
+## 2:45–3:00 — Close: ethics and the pitch
+
+**SHOW:** Back to the Dashboard, wide shot of the full project grid.
+
+**SAY:**
+"Every model in every one of these renders is fully AI-synthetic — never a
+real person's photo or likeness — so a brand using this commercially never
+has a consent problem. This is a professional content pipeline — CAD, photo,
+and video — for the sellers who could never afford one before."
 
 ---
 
 ## Filming checklist
 
-- [ ] Name **AI Clothes Virtual Try-On**, **AI Skin Analysis**, **AI Makeup Virtual Try-On**, and **Image-to-Video** explicitly, on camera — the PRD's submission requirement is that APIs are *named*, not just implied.
-- [ ] Include the two-tool-vs-one-tool comparison (0:15–0:35) — this is a named judging/differentiation point, not optional color.
-- [ ] Show at least one color-harmony note on screen (0:55–1:25).
-- [ ] Show at least one template drop-in, not just a generation result sitting loose on a blank canvas.
-- [ ] Mention synthetic/non-real reference models once, explicitly — it's both a legal safeguard and a stated differentiator in the PRD.
-- [ ] Keep total runtime inside 1–3 minutes; this script targets ~2:15–2:30.
+- [ ] Screen-recorded live on a real desktop/laptop browser — the actual
+      device this app is built for — not a phone capture, not slides.
+- [ ] Name these YouCam endpoints explicitly, on camera: **AI Clothes
+      Virtual Try-On**, **AI Skin Tone Analysis**, **AI Makeup Virtual
+      Try-On**, **Face Analyzer**, **Fitzpatrick Skin Type**, **Image-to-
+      Video**, and at least one **Photo Editing** tool (Enhance, Background
+      Removal, or Image Extender).
+- [ ] Show the Jewelry CAD viewport actually rebuilding in response to a live
+      slider change, not a static render.
+- [ ] Show at least one color-harmony note on screen.
+- [ ] Show at least one template drop-in — a generation sitting inside a
+      branded template, not loose on a blank canvas.
+- [ ] Show the Video Studio timeline actually playing back real footage.
+- [ ] Mention synthetic/non-real reference models explicitly.
+- [ ] Total runtime at or under 3:00 — everything above must be on screen by
+      then; nothing essential held back for "later in the video."

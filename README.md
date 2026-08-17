@@ -33,6 +33,21 @@ Reference models are **fully synthetic** — generated from text prompts via
 YouCam's own AI Image Generator, never a real person's photo — per the PRD's
 hard requirement.
 
+## Demo account (for judges)
+
+A real account with a full, in-use "Blush Riot" brand workspace (Jewelry CAD
+designs, AI Model Studio generations, canvas Projects, Video Studio projects —
+see `hackathon.md` for the full writeup) is already seeded and ready to
+explore, no setup required beyond running the app:
+
+|          |                              |
+| -------- | ---------------------------- |
+| Email    | `md.hatifosmani15@gmail.com` |
+| Password | `L8sBzCt96XNiQSsyKrpe`       |
+
+Log in with these at `/login` after starting the app (see **Setup** below) to
+see everything already built, rather than an empty new account.
+
 ## Prerequisites
 
 - Node.js 20+
